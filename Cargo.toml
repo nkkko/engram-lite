@@ -17,9 +17,9 @@ thiserror = "1.0.52"
 petgraph = "0.6.4"
 dirs = "5.0.1"
 
-# For future TUI implementation
-# ratatui = "0.24.0"
-# crossterm = "0.27.0"
+# TUI implementation
+ratatui = "0.29.0"
+crossterm = "0.27.0"
 
 # For future web server implementation
 # actix-web = "4.4.0"

@@ -45,26 +45,27 @@
 **Goal:** Create a functional memory store with basic persistence, efficiently storing and retrieving engrams
 
 - [ ] [P0] Implement minimal Rust core
-  - [ ] Define type schemas for Engram, Connection, Collection, Agent, Context
-  - [ ] Create serialization/deserialization for all types
-  - [ ] Create basic RocksDB storage implementation
-  - [ ] Implement simple key-value operations (put/get engram)
-  - [ ] Add ACID transaction support for data integrity
-  - [ ] Add basic unit tests for core functionality
-  - [ ] Implement petgraph layer for relations between engrams
+  - [x] Define type schemas for Engram, Connection, Collection, Agent, Context
+  - [x] Create serialization/deserialization for all types
+  - [x] Create basic RocksDB storage implementation
+  - [x] Implement simple key-value operations (put/get engram)
+  - [x] Add ACID transaction support for data integrity
+  - [x] Add basic unit tests for core functionality
+  - [x] Implement petgraph layer for relations between engrams
   - [ ] Create efficient indexes for relationship traversal
-  - [ ] Support typed, weighted connections with metadata
-- [ ] [P0] Build basic CLI tool
-  - [ ] Create simple command-line interface
-  - [ ] Implement commands for adding/retrieving engrams
-  - [ ] Add export/import functionality for data backup
-  - [ ] Create commands for data maintenance
-  - [ ] Implement TUI using ratatui (latest v0.29.0)
-- [ ] [P0] Deliver fundamental documentation using Material for MkDocs (pip install mkdocs-material)
-  - [ ] Document data model and storage approach
-  - [ ] Create README with setup instructions
-  - [ ] Add CLI usage examples
-  - [ ] Document storage schema design decisions
+  - [x] Support typed, weighted connections with metadata
+- [x] [P0] Build basic CLI tool
+  - [x] Create simple command-line interface
+  - [x] Implement commands for adding/retrieving engrams
+  - [x] Add export/import functionality for data backup
+  - [x] Create commands for data maintenance
+  - [x] Implement TUI using ratatui (latest v0.29.0)
+- [x] [P0] Deliver fundamental documentation using Material for MkDocs (pip install mkdocs-material)
+  - [x] Document data model and storage approach
+  - [x] Create README with setup instructions
+  - [x] Add CLI usage examples
+  - [x] Add TUI usage documentation
+  - [x] Document storage schema design decisions
 
 **Value:** A working local database for storing structured memory units with persistence
 

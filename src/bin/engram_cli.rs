@@ -45,30 +45,41 @@ impl EngramCli {
             
             match command {
                 "help" => self.show_help(),
+                // Entity Creation Commands
                 "add-engram" => self.add_engram(args)?,
-                "get-engram" => self.get_engram(args)?,
                 "add-connection" => self.add_connection(args)?,
                 "create-collection" => self.create_collection(args)?,
-                "add-to-collection" => self.add_to_collection(args)?,
                 "create-agent" => self.create_agent(args)?,
+                // Entity Retrieval Commands
+                "get-engram" => self.get_engram(args)?,
+                "add-to-collection" => self.add_to_collection(args)?,
                 "grant-access" => self.grant_access(args)?,
                 "query" => self.query(args)?,
+                // List Commands
                 "list-engrams" => self.list_engrams()?,
                 "list-collections" => self.list_collections()?,
                 "list-agents" => self.list_agents()?,
                 "list-contexts" => self.list_contexts()?,
+                // Delete Commands
                 "delete-engram" => self.delete_engram(args)?,
                 "delete-collection" => self.delete_collection(args)?,
                 "delete-connection" => self.delete_connection(args)?,
                 "delete-agent" => self.delete_agent(args)?,
                 "delete-context" => self.delete_context(args)?,
+                // Filter Commands
                 "filter-by-source" => self.filter_by_source(args)?,
                 "filter-by-confidence" => self.filter_by_confidence(args)?,
+                // Data Maintenance Commands
                 "stats" => self.show_stats()?,
                 "compact" => self.compact_database(args)?,
                 "refresh" => self.refresh_memory_graph()?,
+                "verify-integrity" => self.verify_database_integrity()?,
+                "cleanup-orphans" => self.cleanup_orphan_connections(args)?,
+                // Import/Export Commands
                 "export" => self.export(args)?,
                 "import" => self.import(args)?,
+                "export-collection" => self.export_collection(args)?,
+                "backup" => self.backup(args)?,
                 "exit" | "quit" => break,
                 _ => println!("Unknown command. Type 'help' for available commands."),
             }
@@ -110,11 +121,14 @@ impl EngramCli {
         println!("  stats                                  - Show system statistics");
         println!("  compact                                - Compact the database to reclaim space");
         println!("  refresh                                - Reload memory graph from storage");
+        println!("  verify-integrity                       - Check database integrity");
+        println!("  cleanup-orphans                        - Remove connections to non-existent engrams");
         
         println!("\nImport/Export Commands:");
         println!("  export <file-path>                     - Export all data to JSON file");
-        println!("  export <file-path>;<collection-id>     - Export a specific collection to JSON file");
+        println!("  export-collection <file-path>;<collection-id> - Export a specific collection to JSON file");
         println!("  import <file-path>                     - Import data from JSON file");
+        println!("  backup <directory-path>                - Create a timestamped backup of all data");
         
         println!("\nSystem Commands:");
         println!("  help                                   - Show this help message");
@@ -379,31 +393,46 @@ impl EngramCli {
     }
     
     fn export(&self, args: &str) -> Result<()> {
-        let parts: Vec<&str> = args.split(';').collect();
-        let file_path = parts[0].trim();
+        let file_path = args.trim();
         
         if file_path.is_empty() {
-            println!("Usage: export <file-path> or export <file-path>;<collection-id>");
+            println!("Usage: export <file-path>");
             return Ok(());
         }
         
         let path = std::path::Path::new(file_path);
         
-        if parts.len() > 1 && !parts[1].trim().is_empty() {
-            // Export a specific collection
-            let collection_id = parts[1].trim();
-            println!("Exporting collection {} to {}", collection_id, file_path);
-            match engram_lite::export_collection_to_file(&self.storage, collection_id, path) {
-                Ok(_) => println!("Collection exported successfully"),
-                Err(e) => println!("Export failed: {}", e),
-            }
-        } else {
-            // Export all data
-            println!("Exporting all data to {}", file_path);
-            match engram_lite::export_to_file(&self.storage, path) {
-                Ok(_) => println!("Data exported successfully"),
-                Err(e) => println!("Export failed: {}", e),
-            }
+        // Export all data
+        println!("Exporting all data to {}", file_path);
+        match engram_lite::export_to_file(&self.storage, path) {
+            Ok(_) => println!("Data exported successfully"),
+            Err(e) => println!("Export failed: {}", e),
+        }
+        
+        Ok(())
+    }
+    
+    fn export_collection(&self, args: &str) -> Result<()> {
+        let parts: Vec<&str> = args.split(';').collect();
+        if parts.len() < 2 {
+            println!("Usage: export-collection <file-path>;<collection-id>");
+            return Ok(());
+        }
+        
+        let file_path = parts[0].trim();
+        let collection_id = parts[1].trim();
+        
+        if file_path.is_empty() || collection_id.is_empty() {
+            println!("Usage: export-collection <file-path>;<collection-id>");
+            return Ok(());
+        }
+        
+        let path = std::path::Path::new(file_path);
+        
+        println!("Exporting collection {} to {}", collection_id, file_path);
+        match engram_lite::export_collection_to_file(&self.storage, collection_id, path) {
+            Ok(_) => println!("Collection exported successfully"),
+            Err(e) => println!("Export failed: {}", e),
         }
         
         Ok(())
@@ -712,6 +741,188 @@ impl EngramCli {
         }
         
         println!("Memory graph refreshed successfully");
+        Ok(())
+    }
+    
+    fn verify_database_integrity(&self) -> Result<()> {
+        println!("Verifying database integrity...");
+        
+        // Check for orphaned connections (connections pointing to non-existent engrams)
+        println!("Checking for orphaned connections...");
+        let engram_ids = self.storage.list_engrams()?;
+        let connection_ids = self.storage.list_connections()?;
+        let mut orphaned_connections = 0;
+        
+        for id in &connection_ids {
+            if let Some(connection) = self.storage.get_connection(id)? {
+                let source_exists = engram_ids.contains(&connection.source_id);
+                let target_exists = engram_ids.contains(&connection.target_id);
+                
+                if !source_exists || !target_exists {
+                    orphaned_connections += 1;
+                    println!("  Orphaned connection: {} (source_exists={}, target_exists={})",
+                        id, source_exists, target_exists);
+                }
+            }
+        }
+        
+        // Check for collections with non-existent engrams
+        println!("Checking collections for non-existent engrams...");
+        let collection_ids = self.storage.list_collections()?;
+        let mut collections_with_orphans = 0;
+        
+        for id in &collection_ids {
+            if let Some(collection) = self.storage.get_collection(id)? {
+                let mut orphan_count = 0;
+                for engram_id in &collection.engram_ids {
+                    if !engram_ids.contains(engram_id) {
+                        orphan_count += 1;
+                    }
+                }
+                
+                if orphan_count > 0 {
+                    collections_with_orphans += 1;
+                    println!("  Collection {} has {} non-existent engrams", id, orphan_count);
+                }
+            }
+        }
+        
+        // Check for contexts with non-existent engrams or agents
+        println!("Checking contexts for non-existent engrams or agents...");
+        let context_ids = self.storage.list_contexts()?;
+        let agent_ids = self.storage.list_agents()?;
+        let mut contexts_with_orphans = 0;
+        
+        for id in &context_ids {
+            if let Some(context) = self.storage.get_context(id)? {
+                let mut orphan_engram_count = 0;
+                let mut orphan_agent_count = 0;
+                
+                for engram_id in &context.engram_ids {
+                    if !engram_ids.contains(engram_id) {
+                        orphan_engram_count += 1;
+                    }
+                }
+                
+                for agent_id in &context.agent_ids {
+                    if !agent_ids.contains(agent_id) {
+                        orphan_agent_count += 1;
+                    }
+                }
+                
+                if orphan_engram_count > 0 || orphan_agent_count > 0 {
+                    contexts_with_orphans += 1;
+                    println!("  Context {} has {} non-existent engrams and {} non-existent agents", 
+                        id, orphan_engram_count, orphan_agent_count);
+                }
+            }
+        }
+        
+        // Display summary
+        println!("\nIntegrity verification summary:");
+        println!("  Orphaned connections: {}", orphaned_connections);
+        println!("  Collections with non-existent engrams: {}", collections_with_orphans);
+        println!("  Contexts with non-existent entities: {}", contexts_with_orphans);
+        
+        if orphaned_connections > 0 || collections_with_orphans > 0 || contexts_with_orphans > 0 {
+            println!("\nUse the following commands to fix integrity issues:");
+            println!("  cleanup-orphans - Remove connections to non-existent engrams");
+            println!("  refresh - Reload memory graph with only valid connections");
+        } else {
+            println!("\nDatabase integrity verified. No issues found.");
+        }
+        
+        Ok(())
+    }
+    
+    fn cleanup_orphan_connections(&mut self, args: &str) -> Result<()> {
+        println!("Finding and cleaning up orphaned connections...");
+        
+        let engram_ids = self.storage.list_engrams()?;
+        let connection_ids = self.storage.list_connections()?;
+        let mut orphaned_connections = Vec::new();
+        
+        // Find all orphaned connections
+        for id in &connection_ids {
+            if let Some(connection) = self.storage.get_connection(id)? {
+                let source_exists = engram_ids.contains(&connection.source_id);
+                let target_exists = engram_ids.contains(&connection.target_id);
+                
+                if !source_exists || !target_exists {
+                    orphaned_connections.push(id.clone());
+                }
+            }
+        }
+        
+        if orphaned_connections.is_empty() {
+            println!("No orphaned connections found.");
+            return Ok(());
+        }
+        
+        println!("Found {} orphaned connections.", orphaned_connections.len());
+        
+        // If --auto flag provided, automatically clean up
+        let auto_clean = args.trim() == "--auto";
+        
+        if !auto_clean {
+            println!("Do you want to delete these orphaned connections? (y/n)");
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input).unwrap();
+            if !input.trim().eq_ignore_ascii_case("y") {
+                println!("Cleanup aborted.");
+                return Ok(());
+            }
+        }
+        
+        // Begin a transaction for atomic cleanup
+        let mut txn = self.storage.begin_transaction();
+        
+        // Delete all orphaned connections
+        for conn_id in &orphaned_connections {
+            txn.delete_connection(conn_id)?;
+            println!("  Deleted orphaned connection: {}", conn_id);
+        }
+        
+        // Commit the transaction
+        txn.commit()?;
+        
+        println!("Successfully cleaned up {} orphaned connections.", orphaned_connections.len());
+        println!("Refreshing memory graph...");
+        self.refresh_memory_graph()?;
+        
+        Ok(())
+    }
+    
+    fn backup(&self, args: &str) -> Result<()> {
+        let dir_path = args.trim();
+        
+        if dir_path.is_empty() {
+            println!("Usage: backup <directory-path>");
+            return Ok(());
+        }
+        
+        // Create directory if it doesn't exist
+        let backup_dir = std::path::Path::new(dir_path);
+        if !backup_dir.exists() {
+            std::fs::create_dir_all(backup_dir).map_err(|e| {
+                EngramError::StorageError(format!("Failed to create backup directory: {}", e))
+            })?;
+        }
+        
+        // Create a timestamped filename
+        let now = chrono::Local::now();
+        let timestamp = now.format("%Y%m%d_%H%M%S");
+        let filename = format!("engram_backup_{}.json", timestamp);
+        let backup_path = backup_dir.join(filename);
+        
+        println!("Creating backup at {}", backup_path.display());
+        
+        // Use the existing export functionality
+        match engram_lite::export_to_file(&self.storage, &backup_path) {
+            Ok(_) => println!("Backup created successfully"),
+            Err(e) => println!("Backup failed: {}", e),
+        }
+        
         Ok(())
     }
 }

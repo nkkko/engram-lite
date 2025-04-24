@@ -722,6 +722,7 @@ fn show_help() {
     
     println!("\nCOMMANDS:");
     println!("  cli             Start interactive CLI mode (default if no command provided)");
+    println!("  tui             Start interactive Terminal UI mode");
     println!("  help            Show this help message");
     
     println!("\nOPTIONS:");
@@ -730,7 +731,11 @@ fn show_help() {
     println!("\nEXAMPLES:");
     println!("  engramlt                   # Start CLI mode with default settings");
     println!("  engramlt cli --db-path /path/to/db");
+    println!("  engramlt tui               # Start TUI mode with default settings");
 }
+
+// Import tui module
+mod tui;
 
 fn main() -> Result<()> {
     // Load environment variables from .env file
@@ -769,6 +774,13 @@ fn main() -> Result<()> {
                 Err(e) => {
                     eprintln!("Failed to initialize CLI: {}", e);
                 }
+            }
+        },
+        "tui" => {
+            // Start TUI mode
+            println!("Starting Terminal UI mode...");
+            if let Err(e) = tui::run(&db_path) {
+                eprintln!("Error: {}", e);
             }
         },
         "help" => {

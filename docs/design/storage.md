@@ -137,7 +137,61 @@ The storage layer includes several optimizations:
 
 While RocksDB provides persistence, EngramAI Lite maintains an in-memory graph representation using `petgraph` for fast traversal and query operations. The storage layer serves as the system of record, while the in-memory graph enables high-performance graph algorithms.
 
-## Future Storage Enhancements
+## Design Decisions
+
+### Why RocksDB?
+
+RocksDB was chosen as the storage engine for EngramAI Lite for several key reasons:
+
+1. **Performance**: RocksDB's LSM-tree based architecture provides excellent write performance, which is essential for memory graphs that may need to rapidly store new engrams and connections.
+
+2. **Scalability**: RocksDB can handle databases from a few megabytes to many terabytes, allowing EngramAI Lite to grow with a user's knowledge base without requiring migration to a different backend.
+
+3. **Embedding**: As a library database, RocksDB can be embedded directly in the application, avoiding the complexity of a separate database process.
+
+4. **Column Families**: The column family feature provides a clean way to separate different entity types without maintaining multiple databases.
+
+5. **Transaction Support**: Built-in support for ACID transactions ensures data integrity even in case of crashes or power failures.
+
+6. **Active Development**: RocksDB is actively developed by Facebook/Meta and has a large community, ensuring bugs are fixed and improvements are continuously made.
+
+### Key Format
+
+The key format `<type_prefix>:<entity_id>` was chosen to:
+
+1. **Enable Scans**: Easily scan all entries of a specific type by using prefix iteration
+2. **Avoid Collisions**: Prevent ID collisions between different entity types
+3. **Simplify Debugging**: Make keys more human-readable during development and debugging
+
+### JSON Serialization
+
+JSON was chosen for data serialization instead of a binary format like Protocol Buffers or MessagePack for several reasons:
+
+1. **Schema Evolution**: JSON's flexible nature makes it easier to evolve the schema over time without complex migration code
+2. **Human Readability**: JSON can be easily read by humans, aiding in debugging and data inspection
+3. **Interoperability**: JSON is widely supported across platforms and languages, facilitating future clients in different languages
+4. **Import/Export**: Using JSON internally simplifies the import/export functionality, as no format conversion is needed
+
+While this comes at a slight performance cost compared to binary formats, the benefits in flexibility and maintainability outweigh this cost for the target use cases.
+
+### Transaction Design
+
+The transaction API was designed to mimic the familiar patterns from SQL databases:
+
+```rust
+let mut txn = storage.begin_transaction();
+// ... operations ...
+txn.commit()?; // or txn.abort();
+```
+
+This design has several advantages:
+
+1. **Familiar Pattern**: Developers already familiar with database transactions can easily understand and use the API
+2. **RAII Compliance**: The transaction is automatically aborted if dropped without being committed
+3. **Method Chaining**: Operations can be chained for cleaner code
+4. **Explicit Control**: Transactions are explicitly started and committed, making the code's intent clear
+
+### Future Storage Enhancements
 
 Future enhancements to the storage layer may include:
 
@@ -146,3 +200,6 @@ Future enhancements to the storage layer may include:
 3. **Custom Comparators**: Optimized key ordering
 4. **Compression Tuning**: Better space efficiency
 5. **Sharding**: Distributing data across multiple database instances
+6. **Secondary Indexes**: More efficient querying beyond ID lookups
+7. **Vector Storage**: Specialized storage for embedding vectors
+8. **Time-to-Live (TTL)**: Automatic expiration of ephemeral data

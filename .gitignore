@@ -1,10 +1,97 @@
+# Rust build artifacts
 /target
 **/*.rs.bk
-.env
 Cargo.lock
-engram_db/
-debug/
-.vscode/
-.idea/
+**/*.tmp
+
+# Local testing database 
+/engram_db/
+/debug/
+
+# Environment files
+.env
+**/.env
+
+# IDE and editor files
+/.vscode/
+/.idea/
 *.iml
+*.swp
+*.swo
+*~
+.project
+.settings/
+.classpath
+
+# OS-specific files
 .DS_Store
+Thumbs.db
+desktop.ini
+
+# Python virtual environments
+/env/
+/venv/
+/docs/env/
+**/__pycache__/
+*.py[cod]
+*$py.class
+**/.Python
+**/.venv
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# MkDocs build files
+/site/
+
+# Backup and temporary files
+*.bak
+*.backup
+*.orig
+*.rej
+*.log
+*.tmp
+*.temp
+*.tgz
+*.gz
+*.zip
+*.tar
+*.7z
+*.dmg
+*.iso
+*.jar
+*.war
+*.ear
+*.sql
+*.sqlite
+
+# Benchmark results
+/benchmarks/results/
+
+# Documentation temp files
+.sass-cache/
+.jekyll-cache/
+.jekyll-metadata
+
+# Files containing sensitive data
+*secret*
+*credential*
+*password*
+*token*
+*key*
+!*template*
+!*example*

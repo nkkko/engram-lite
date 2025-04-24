@@ -1,4 +1,5 @@
 use thiserror::Error;
+use std::io;
 
 #[derive(Error, Debug)]
 pub enum EngramError {
@@ -25,6 +26,9 @@ pub enum EngramError {
     
     #[error("JSON error: {0}")]
     JsonError(#[from] serde_json::Error),
+    
+    #[error("I/O error: {0}")]
+    IoError(#[from] io::Error),
     
     #[error("Transaction error: {0}")]
     TransactionError(String),
