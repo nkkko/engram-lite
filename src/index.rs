@@ -1,4 +1,4 @@
-use crate::error::{EngramError, Result};
+use crate::error::Result;
 use crate::schema::{EngramId, ConnectionId, Collection, Connection, Engram};
 use std::collections::{HashMap, HashSet};
 

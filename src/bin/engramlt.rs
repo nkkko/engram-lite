@@ -1,11 +1,10 @@
 use engram_lite::error::Result;
 use engram_lite::graph::MemoryGraph;
-use engram_lite::schema::{Agent, Collection, Connection, Context, Engram};
+use engram_lite::schema::{Agent, Collection, Connection, Engram};
 use engram_lite::storage::Storage;
 use std::collections::HashSet;
 use std::env;
-use std::fs::File;
-use std::io::{self, BufReader, BufWriter, Write};
+use std::io::{self, Write};
 use std::path::Path;
 
 struct EngramCli {
