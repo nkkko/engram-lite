@@ -1,0 +1,10 @@
+/target
+**/*.rs.bk
+.env
+Cargo.lock
+engram_db/
+debug/
+.vscode/
+.idea/
+*.iml
+.DS_Store
