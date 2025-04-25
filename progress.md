@@ -1,5 +1,41 @@
 # Implementation Progress
 
+## Milestone 3: Vector Search & Hybrid Retrieval [P1]
+
+### Completed
+
+- [x] Implement vector infrastructure
+  - [x] Add embedding storage to RocksDB schema
+  - [x] Integrate HNSW index for vector search
+  - [x] Create vector similarity search API
+  - [x] Create EmbeddingService with multi-model support
+- [x] Implement model types for semantic search
+  - [x] E5 Multilingual Large Instruct (Default)
+  - [x] GTE Modern BERT Base
+  - [x] Jina Embeddings V3
+  - [x] Custom model support
+- [x] Replace placeholder embedding generation with real implementation using HuggingFace API
+  - [x] Implement model-specific text formatting
+  - [x] Add deterministic fallback when API is unavailable
+  - [x] Create comprehensive test suite for embedding functionality
+- [x] Build hybrid search capabilities
+  - [x] Implement combined keyword + vector search
+  - [x] Create query builder for complex searches
+- [x] Create Python client
+  - [x] Implement PyO3 bindings for core functions
+  - [x] Create Python API wrapper
+  - [x] Add examples of vector search in Python
+
+### In Progress
+
+- [ ] Implement HNSW algorithm properly instead of linear search
+- [ ] Add real vector_search.rs implementation for get_embedding_for_engram
+- [ ] Fix web and MCP server placeholder implementations
+- [ ] Implement local embedding models support for offline usage
+  - [ ] Add support for loading and running E5, GTE, and Jina models locally
+  - [ ] Implement efficient inference using ONNX runtime
+  - [ ] Create model caching and download mechanisms
+
 ## Milestone 1: Core Memory Store [P0]
 
 ### Completed
@@ -17,15 +53,12 @@
 - [x] Create README with setup instructions
 - [x] Document data model and storage approach
 - [x] Add API key configuration for LLM integration
-
-### In Progress
-
-- [ ] Create efficient indexes for relationship traversal
-- [ ] Add export/import functionality for data backup
-- [ ] Create commands for data maintenance
-- [ ] Implement TUI using ratatui
-- [ ] Add CLI usage examples
-- [ ] Document storage schema design decisions
+- [x] Create efficient indexes for relationship traversal
+- [x] Add export/import functionality for data backup
+- [x] Create commands for data maintenance
+- [x] Implement TUI using ratatui
+- [x] Add CLI usage examples
+- [x] Document storage schema design decisions
 
 ## Implementation Notes
 

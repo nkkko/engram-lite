@@ -4,8 +4,11 @@ use engram_lite::{
     utils::{load_env_from_file, get_anthropic_api_key},
 };
 
+#[cfg(feature = "grpc")]
 use std::net::SocketAddr;
+#[cfg(feature = "grpc")]
 use std::path::PathBuf;
+#[cfg(feature = "grpc")]
 use std::sync::Arc;
 
 #[cfg(feature = "grpc")]

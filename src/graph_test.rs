@@ -3,7 +3,7 @@ mod tests {
     use crate::graph::MemoryGraph;
     use crate::schema::{Engram, Connection, Collection, Agent, Context};
     use crate::index::SearchIndex;
-    use crate::query::{QueryService, EngramQuery, RelationshipQuery};
+    
     use std::collections::HashMap;
 
     /// Helper function to create test engrams

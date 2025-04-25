@@ -2,7 +2,7 @@
 mod tests {
     use crate::index::{RelationshipIndex, MetadataIndex, SearchIndex};
     use crate::schema::{Connection, Engram};
-    use std::collections::HashMap;
+    
     use serde_json::json;
 
     fn create_test_engram(id: &str, content: &str, source: &str, confidence: f64) -> Engram {

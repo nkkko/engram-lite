@@ -42,12 +42,24 @@ We've built a comprehensive search system:
    - Developed higher-level QueryService for common search patterns
 
 ### Testing Infrastructure
-We've set up a basic testing framework:
+We've set up a complete testing framework:
 
 1. **Integration Tests**
    - Created test suite for memory graph operations
    - Implemented tests for relationship traversal
    - Added tests for the search index and query interface
+
+2. **Comprehensive Unit Tests**
+   - Added schema tests for data model entities
+   - Implemented storage tests for persistence operations
+   - Created graph tests for relationship operations
+   - Added vector search tests for embedding functionality
+   - Designed tests to handle graceful failures with missing API keys
+
+3. **CI/CD Setup**
+   - Configured GitHub Actions workflow for automated testing
+   - Added build, test, linting, and documentation jobs
+   - Set up proper caching for faster CI runs
 
 ## Final Milestone 2 Enhancements
 
@@ -74,23 +86,6 @@ With the completion of Milestone 2, the following additional features are now av
 3. **Multi-criteria Search**: Combine text, metadata, and graph-based criteria in queries
 4. **Relationship Indexing**: Fast traversal of connections by source, target, or type
 5. **Flexible Querying**: High-level query API with fluent interface
-
-## Next Steps
-
-1. Begin implementation of Milestone 5: Memory Management
-2. Implement temporal capabilities
-   - Add timestamp tracking and temporal query operators
-   - Implement recency-based relevance scoring
-   - Create time-aware retrieval mechanisms
-3. Build forgetting mechanisms
-   - Add confidence and importance scoring
-   - Implement configurable forgetting policies
-   - Create memory pruning and compaction
-4. Add RocksDB optimizations
-   - Implement tiered storage
-   - Optimize for write-heavy workloads
-   - Add intelligent compaction policies
-5. As a parallel track, enhance security for the API service
 
 ## Milestone 4: API Service Layer (Completed)
 
@@ -125,6 +120,12 @@ We've implemented a full-featured gRPC service layer:
    - Built comprehensive documentation
    - Implemented proper shutdown handling
 
+5. **Web Server Implementation**
+   - Created a fully functional web server with RESTful API
+   - Implemented CORS support and security middleware
+   - Added HTML dashboard with real-time database statistics
+   - Built proper error handling and template system
+
 ### Future Security Enhancements
 While the core service is complete, we've identified these security enhancements for a future update:
 
@@ -132,8 +133,6 @@ While the core service is complete, we've identified these security enhancements
    - Implement token-based authentication
    - Add basic access control mechanisms
    - Implement TLS for encrypted connections
-
-The core service implementation, client libraries, and documentation are now complete, making Milestone 4 functionally achieved with the gRPC API now available for use.
 
 ## Milestone 3: Vector Search & Hybrid Retrieval (Completed)
 
@@ -164,6 +163,13 @@ We've implemented comprehensive vector embedding support:
    - Added LRU caching for embedding reuse
    - Implemented dimensionality reduction for storage optimization
    - Added batch processing for large collections
+   - Replaced placeholder implementations with real embedding generation using HuggingFace API
+   - Implemented model-specific text formatting (e.g., adding "passage:" prefix for E5 models)
+   - Added fallback to deterministic embeddings when API is unavailable
+   - Created comprehensive test suite for embedding functionality
+   - Implemented proper error handling for API requests with graceful fallbacks
+   - Added environment variable configuration for API keys
+   - Designed modular architecture for adding new embedding models
 
 ### Model Support
 We've implemented support for multiple embedding models:
@@ -227,33 +233,24 @@ We've created comprehensive Python bindings:
    - Created example scripts demonstrating API usage
    - Added documentation for Python integration
 
-## Previous Milestones
+## Next Steps
 
-### Milestone 1: Core Memory Store (Completed)
+1. **MCP Server Implementation**
+   - Replace placeholder with fully functional server
+   - Add LLM integration for memory management
+   - Implement memory tools for MCP protocol
 
-1. **Core Data Structures**
-   - Implemented all primary schema types: Engram, Connection, Collection, Agent, Context
-   - Added proper serialization/deserialization using serde
-   - Designed with proper type safety and Rust idioms
+2. **Local Embedding Models**
+   - Add support for running embedding models locally
+   - Implement efficient ONNX runtime for inference
+   - Create model caching and download mechanisms
 
-2. **Persistent Storage**
-   - Created RocksDB-based storage layer
-   - Implemented column family organization for different entity types
-   - Added transaction support for ACID guarantees
-   - Implemented basic key-value operations
+3. **Memory Management Features**
+   - Implement temporal capabilities
+   - Add forgetting mechanisms with confidence scoring
+   - Create memory pruning and compaction
 
-3. **In-Memory Graph Representation**
-   - Built petgraph-based memory graph implementation
-   - Added support for typed edges and nodes
-   - Implemented relationship traversal functions
-   - Created access control mechanisms
-
-4. **User Interface**
-   - Developed a comprehensive CLI for interacting with the system
-   - Implemented interactive TUI using ratatui with tabbed navigation
-   - Added commands for creating, retrieving, and managing entities
-   - Implemented query capabilities
-
-5. **Documentation**
-   - Created README with setup instructions and architecture details
-   - Documented the core components and their interactions
+4. **Web UI Enhancements**
+   - Add interactive graph visualization
+   - Implement more advanced search interfaces
+   - Create dashboard for memory health metrics

@@ -1,12 +1,10 @@
 use engram_lite::error::{EngramError, Result};
 use engram_lite::graph::MemoryGraph;
-use engram_lite::schema::{Agent, Collection, Connection, Context, Engram};
+use engram_lite::schema::{Agent, Collection, Connection, Engram};
 use engram_lite::storage::Storage;
 use std::collections::HashSet;
 use std::env;
-use std::fs;
 use std::io::{self, Write};
-use std::path::Path;
 
 struct EngramCli {
     storage: Storage,
@@ -662,7 +660,7 @@ impl EngramCli {
         Ok(())
     }
     
-    fn compact_database(&self, args: &str) -> Result<()> {
+    fn compact_database(&self, _args: &str) -> Result<()> {
         println!("Compacting database...");
         
         // Implementing basic compaction for now

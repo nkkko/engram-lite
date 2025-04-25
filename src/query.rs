@@ -5,6 +5,7 @@ use crate::index::SearchIndex;
 use std::collections::HashSet;
 
 /// Represents filter conditions for querying engrams
+#[allow(dead_code)]
 pub struct EngramQuery {
     /// Optional text search query
     pub text: Option<String>,
@@ -87,6 +88,7 @@ impl EngramQuery {
 }
 
 /// Represents types of relationship queries
+#[allow(dead_code)]
 pub enum RelationshipQueryType {
     /// Query for outgoing connections from a source engram
     Outgoing,
@@ -110,6 +112,7 @@ pub enum RelationshipQueryType {
 }
 
 /// Represents a query for relationships
+#[allow(dead_code)]
 pub struct RelationshipQuery {
     /// The engram ID to start from
     pub engram_id: EngramId,
@@ -118,6 +121,7 @@ pub struct RelationshipQuery {
     pub query_type: RelationshipQueryType,
 }
 
+#[allow(dead_code)]
 impl RelationshipQuery {
     /// Create a new query for outgoing connections from the specified engram
     pub fn outgoing(engram_id: EngramId) -> Self {
@@ -164,6 +168,7 @@ impl RelationshipQuery {
 }
 
 /// Engine for executing queries against the memory graph
+#[allow(dead_code)]
 pub struct QueryEngine<'a> {
     /// The storage backend
     storage: &'a Storage,
@@ -172,6 +177,7 @@ pub struct QueryEngine<'a> {
     index: &'a SearchIndex,
 }
 
+#[allow(dead_code)]
 impl<'a> QueryEngine<'a> {
     /// Create a new query engine
     pub fn new(storage: &'a Storage, index: &'a SearchIndex) -> Self {
@@ -396,6 +402,7 @@ impl<'a> TraversalEngine<'a> {
 }
 
 /// A higher-level interface for performing queries and traversals
+#[allow(dead_code)]
 pub struct QueryService<'a> {
     /// The query engine
     query_engine: QueryEngine<'a>,
@@ -404,6 +411,7 @@ pub struct QueryService<'a> {
     traversal_engine: TraversalEngine<'a>,
 }
 
+#[allow(dead_code)]
 impl<'a> QueryService<'a> {
     /// Get a reference to the query engine
     pub fn get_query_engine(&self) -> &QueryEngine<'a> {

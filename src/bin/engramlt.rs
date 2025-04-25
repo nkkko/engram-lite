@@ -723,15 +723,18 @@ fn show_help() {
     println!("\nCOMMANDS:");
     println!("  cli             Start interactive CLI mode (default if no command provided)");
     println!("  tui             Start interactive Terminal UI mode");
+    println!("  web             Start web server mode");
     println!("  help            Show this help message");
     
     println!("\nOPTIONS:");
     println!("  --db-path PATH  Path to the database directory (default: ./engram_db)");
+    println!("  --port PORT     Port for web server (default: 3000)");
     
     println!("\nEXAMPLES:");
     println!("  engramlt                   # Start CLI mode with default settings");
     println!("  engramlt cli --db-path /path/to/db");
     println!("  engramlt tui               # Start TUI mode with default settings");
+    println!("  engramlt web --port 8080   # Start web server on port 8080");
 }
 
 #[cfg(feature = "tui")]
@@ -749,6 +752,9 @@ mod tui {
     }
 }
 
+// Import the web module
+mod web;
+
 fn main() -> Result<()> {
     // Load environment variables from .env file
     let _ = engram_lite::load_env_from_file(".env");
@@ -763,6 +769,8 @@ fn main() -> Result<()> {
     
     // Default to ./engram_db as the database path
     let mut db_path = "./engram_db".to_string();
+    // Default port for web server
+    let mut port = 3000u16;
     
     // Parse command line arguments
     let command = if args.len() > 1 { args[1].as_str() } else { "cli" };
@@ -771,6 +779,13 @@ fn main() -> Result<()> {
     for i in 2..args.len() {
         if args[i] == "--db-path" && i + 1 < args.len() {
             db_path = args[i + 1].clone();
+        } else if args[i] == "--port" && i + 1 < args.len() {
+            if let Ok(p) = args[i + 1].parse::<u16>() {
+                port = p;
+            } else {
+                eprintln!("Invalid port number: {}", args[i + 1]);
+                return Ok(());
+            }
         }
     }
     
@@ -792,6 +807,13 @@ fn main() -> Result<()> {
             // Start TUI mode
             println!("Starting Terminal UI mode...");
             if let Err(e) = tui::run(&db_path) {
+                eprintln!("Error: {}", e);
+            }
+        },
+        "web" => {
+            // Start Web server mode
+            println!("Starting Web server mode...");
+            if let Err(e) = web::start_server(&db_path, port) {
                 eprintln!("Error: {}", e);
             }
         },

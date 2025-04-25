@@ -3,6 +3,7 @@ use crate::schema::{EngramId, ConnectionId, Collection, Connection, Engram};
 use std::collections::{HashMap, HashSet};
 
 /// Efficient indexes for fast relationship traversal
+#[allow(dead_code)]
 pub struct RelationshipIndex {
     /// Index from source engram ID to outgoing connections
     outgoing_connections: HashMap<EngramId, HashSet<ConnectionId>>,
@@ -20,6 +21,7 @@ pub struct RelationshipIndex {
     target_to_sources: HashMap<EngramId, HashSet<EngramId>>,
 }
 
+#[allow(dead_code)]
 impl RelationshipIndex {
     /// Create a new, empty relationship index
     pub fn new() -> Self {
@@ -257,6 +259,7 @@ pub struct MetadataIndex {
     key_value_index: HashMap<(String, String), HashSet<EngramId>>,
 }
 
+#[allow(dead_code)]
 impl MetadataIndex {
     /// Create a new, empty metadata index
     pub fn new() -> Self {
@@ -332,6 +335,7 @@ impl MetadataIndex {
 }
 
 /// Text search index for basic keyword search
+#[allow(dead_code)]
 pub struct TextIndex {
     /// Maps normalized keywords to engram IDs
     keyword_index: HashMap<String, HashSet<EngramId>>,
@@ -343,6 +347,7 @@ pub struct TextIndex {
     engram_keywords: HashMap<EngramId, HashSet<String>>,
 }
 
+#[allow(dead_code)]
 impl TextIndex {
     /// Create a new, empty text index
     pub fn new() -> Self {
@@ -531,6 +536,7 @@ pub struct SearchIndex {
     confidence_index: HashMap<u8, HashSet<EngramId>>, // Bucketed by confidence * 10
 }
 
+#[allow(dead_code)]
 impl SearchIndex {
     /// Create a new, empty search index
     pub fn new() -> Self {
@@ -705,6 +711,7 @@ impl SearchIndex {
 }
 
 /// In-memory index for a collection of engrams
+#[allow(dead_code)]
 pub struct CollectionIndex {
     /// The collection being indexed
     collection_id: String,
@@ -713,6 +720,7 @@ pub struct CollectionIndex {
     engram_ids: HashSet<EngramId>,
 }
 
+#[allow(dead_code)]
 impl CollectionIndex {
     /// Create a new index for a collection
     pub fn new(collection: &Collection) -> Self {

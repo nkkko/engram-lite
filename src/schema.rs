@@ -105,6 +105,7 @@ pub struct Collection {
     pub metadata: Metadata,
 }
 
+#[allow(dead_code)]
 impl Collection {
     pub fn new(name: String, description: String, metadata: Option<Metadata>) -> Self {
         Self {
@@ -147,6 +148,7 @@ pub struct Agent {
     pub metadata: Metadata,
 }
 
+#[allow(dead_code)]
 impl Agent {
     pub fn new(
         name: String,
@@ -199,6 +201,7 @@ pub struct Context {
     pub metadata: Metadata,
 }
 
+#[allow(dead_code)]
 impl Context {
     pub fn new(name: String, description: String, metadata: Option<Metadata>) -> Self {
         Self {

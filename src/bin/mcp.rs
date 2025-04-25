@@ -67,3 +67,10 @@ pub fn init_config(target: &str) -> Result<()> {
     println!("Configuration initialized successfully");
     Ok(())
 }
+
+// Add a main function to satisfy the compiler
+fn main() -> Result<()> {
+    // This is a library component, not meant to be run directly
+    println!("This is a library component. Use engramlt instead.");
+    Ok(())
+}

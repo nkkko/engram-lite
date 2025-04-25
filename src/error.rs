@@ -2,6 +2,7 @@ use thiserror::Error;
 use std::io;
 
 #[derive(Error, Debug)]
+#[allow(dead_code)]
 pub enum EngramError {
     #[error("Invalid ID: {0}")]
     InvalidId(String),

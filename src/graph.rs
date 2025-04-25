@@ -47,6 +47,7 @@ pub struct MemoryGraph {
     connection_indices: HashMap<ConnectionId, petgraph::graph::EdgeIndex>,
 }
 
+#[allow(dead_code)]
 impl MemoryGraph {
     /// Create a new, empty memory graph
     pub fn new() -> Self {

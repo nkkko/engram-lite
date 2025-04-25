@@ -222,7 +222,7 @@ pub fn benchmark_connections(
 
 /// Benchmark for search operations
 pub fn benchmark_search(
-    index: &SearchIndex,
+    _index: &SearchIndex,
     service: &QueryService,
     iterations: usize
 ) -> Result<BenchmarkResult> {
@@ -343,7 +343,7 @@ pub fn run_all_benchmarks(storage: &Storage, index: &SearchIndex) -> Result<Vec<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
+    
     use tempfile::tempdir;
     
     #[test]

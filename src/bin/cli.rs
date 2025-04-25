@@ -1,12 +1,9 @@
-use engram_lite::error::{EngramError, Result};
+use engram_lite::error::Result;
 use engram_lite::graph::MemoryGraph;
-use engram_lite::schema::{Agent, Collection, Connection, Context, Engram};
+use engram_lite::schema::{Agent, Collection, Connection, Engram};
 use engram_lite::storage::Storage;
 use std::collections::HashSet;
-use std::env;
-use std::fs;
 use std::io::{self, Write};
-use std::path::Path;
 
 struct EngramCli {
     storage: Storage,
@@ -578,7 +575,7 @@ impl EngramCli {
         Ok(())
     }
     
-    fn compact_database(&self, args: &str) -> Result<()> {
+    fn compact_database(&self, _args: &str) -> Result<()> {
         println!("Compacting database...");
         
         // Implementing basic compaction for now
@@ -718,8 +715,14 @@ impl EngramCli {
     }
 }
 
-// This module doesn't need a main function
-// It's used by the engramlt binary
+// This module is intended to be used by the engramlt binary
+// But we add a main function for direct compilation
+
+fn main() -> Result<()> {
+    // This is a library component, not meant to be run directly
+    println!("This is a library component. Use engramlt instead.");
+    Ok(())
+}
 
 pub fn run(db_path: &str) -> Result<()> {
     match EngramCli::new(db_path) {

@@ -84,6 +84,11 @@
   - [x] Set up integration test framework
   - [x] Create benchmark suite for core operations
   - [x] Implement CI pipeline with basic automated tests
+  - [x] Add comprehensive unit tests for core functionality
+    - [x] Create schema tests for data model entities
+    - [x] Implement storage tests for persistence operations
+    - [x] Add graph tests for relationship operations
+    - [x] Create vector search tests for embedding functionality
 
 **Value:** Ability to connect memories and perform basic searches, enabling simple knowledge graph applications
 
@@ -142,10 +147,16 @@
     - [x] Add with_model method (String-based custom model selection)
     - [x] Ensure compatibility with Rust implementation
 - [ ] [P1] Fix mock implementations
-  - [ ] Replace placeholder embedding generation in embedding.rs with real implementation
-  - [ ] Implement HNSW algorithm properly instead of linear search
-  - [ ] Add real vector_search.rs implementation for get_embedding_for_engram
-  - [ ] Fix web and MCP server placeholder implementations
+  - [x] Replace placeholder embedding generation in embedding.rs with real implementation
+  - [ ] [P2] Implement local embedding models support for offline usage
+    - [ ] Add support for loading and running E5, GTE, and Jina models locally
+    - [ ] Implement efficient inference using ONNX runtime
+    - [ ] Create model caching and download mechanisms
+    - [ ] Ensure model-specific parameters are properly handled
+  - [x] Implement HNSW algorithm properly instead of linear search
+  - [x] Add real vector_search.rs implementation for get_embedding_for_engram
+  - [x] Fix web server placeholder implementation
+  - [ ] Fix MCP server placeholder implementation
   - [ ] See mock.md for a complete list of mock implementations to address
 
 **Value:** Semantic search capabilities using embeddings alongside keyword search, enabling AI-friendly memory retrieval

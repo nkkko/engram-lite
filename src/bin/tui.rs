@@ -6,9 +6,6 @@ use crossterm::{
 };
 use engram_lite::{
     error::Result,
-    graph::MemoryGraph,
-    schema::{Engram, Connection, Collection, Agent, Context},
-    storage::Storage,
 };
 #[cfg(feature = "tui")]
 use ratatui::{
@@ -19,10 +16,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Paragraph, Tabs},
     Frame, Terminal,
 };
-use std::{
-    io,
-    time::{Duration, Instant},
-};
+
 
 #[cfg(feature = "tui")]
 enum InputMode {
@@ -929,7 +923,7 @@ fn render_help(f: &mut Frame, _app: &EngramTui, area: Rect) {
     f.render_widget(help, area);
 }
 
-pub fn run(db_path: &str) -> Result<()> {
+pub fn run(_db_path: &str) -> Result<()> {
     #[cfg(feature = "tui")]
     {
         println!("Starting Terminal UI mode...");
@@ -1037,5 +1031,12 @@ fn fallback_cli_mode(_db_path: &str) -> Result<()> {
     println!("  Agents: 0");
     println!("  Contexts: 0");
     println!("\nTo use the full TUI features, run the application in a proper terminal.");
+    Ok(())
+}
+
+// Add a main function to satisfy the compiler
+fn main() -> Result<()> {
+    // This is a library component, not meant to be run directly
+    println!("This is a library component. Use engramlt instead.");
     Ok(())
 }

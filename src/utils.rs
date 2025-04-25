@@ -62,10 +62,50 @@ pub fn has_claude_capabilities() -> bool {
     get_anthropic_api_key().is_some()
 }
 
+/// Get the Hugging Face API key from environment
+pub fn get_huggingface_api_key() -> Option<String> {
+    // Check for HUGGINGFACE_API_KEY
+    if let Ok(key) = env::var("HUGGINGFACE_API_KEY") {
+        if !key.is_empty() {
+            return Some(key);
+        }
+    }
+    
+    None
+}
+
+/// Check if Hugging Face embedding capabilities are available
+pub fn has_huggingface_capabilities() -> bool {
+    get_huggingface_api_key().is_some()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::env;
+    
+    #[test]
+    fn test_get_huggingface_api_key() {
+        // Save the original value to restore later
+        let original = env::var("HUGGINGFACE_API_KEY").ok();
+        
+        // Clear the env var for testing
+        env::remove_var("HUGGINGFACE_API_KEY");
+        
+        // Test getting the API key when not set
+        assert!(get_huggingface_api_key().is_none());
+        
+        // Set the API key and test again
+        env::set_var("HUGGINGFACE_API_KEY", "test_hf_key");
+        assert_eq!(get_huggingface_api_key(), Some("test_hf_key".to_string()));
+        
+        // Restore the original value
+        if let Some(val) = original {
+            env::set_var("HUGGINGFACE_API_KEY", val);
+        } else {
+            env::remove_var("HUGGINGFACE_API_KEY");
+        }
+    }
     
     #[test]
     fn test_get_anthropic_api_key() {

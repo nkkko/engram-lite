@@ -5,22 +5,25 @@ This document catalogs all mock, placeholder, and simplified implementations in 
 ## Embedding Service (`src/embedding.rs`)
 
 - **Pseudo-Embedding Generation** (Lines 407-465)
-  - The `embed_text` method generates deterministic pseudo-embeddings based on a hash of the input text
-  - Comment: "This is a placeholder for real embedding generation"
-  - Used in production code as a temporary solution
+  - The `embed_text` method generates deterministic pseudo-embeddings based on a hash of the input text when HuggingFace API is not available
+  - Comment: "This is a fallback for when the real API is unavailable"
+  - Used in production code as a temporary solution or fallback
 
-- **Simplified HNSW Vector Index** (Lines 548-636)
-  - The `HnswIndex` implementation doesn't implement the actual HNSW algorithm
-  - Uses linear search instead of proper approximate nearest neighbor search
-  - Comment: "For now, just do a linear search through our placeholder data"
-  - Used in production code
+- ~~**Simplified HNSW Vector Index** (Lines 548-636)~~ ✅ **IMPLEMENTED**
+  - The `HnswIndex` now implements a proper HNSW algorithm with:
+    - Multi-layer graph structure
+    - Hierarchical search paths
+    - Priority queue-based nearest neighbor search
+    - Efficient node insertion and connection management
+  - Follows the original HNSW algorithm described in research papers
+  - Includes proper configuration for performance tuning (M parameter, ef_construction, ef_search)
 
 ## Vector Search (`src/vector_search.rs`)
 
-- **Missing Embedding Retrieval** (Lines 285-287)
-  - Unimplemented `get_embedding_for_engram` method
-  - Returns placeholder error message instead of actual embeddings
-  - Comment: "This is a simplified implementation - in a real system we would store and retrieve the actual embeddings from storage"
+- ~~**Missing Embedding Retrieval** (Lines 285-287)~~ ✅ **IMPLEMENTED**
+  - The `get_embedding_for_engram` method now properly retrieves embeddings from the HnswIndex
+  - Uses the new `get_embedding` method added to HnswIndex
+  - Returns actual embeddings or appropriate error messages
 
 - **Dimension Reduction Fallbacks** (Lines 82-92, 113-142)
   - Simplified fallback paths when dimension reduction isn't available
@@ -32,11 +35,13 @@ This document catalogs all mock, placeholder, and simplified implementations in 
 
 ## Web Server (`src/bin/web.rs`)
 
-- **Complete Placeholder Implementation** (Lines 3-16)
-  - Entire file is a mock that just prints messages
-  - No actual web server functionality
-  - Comment: "Placeholder for web server implementation"
-  - Simply runs an infinite loop to keep the program running
+- ~~**Complete Placeholder Implementation** (Lines 3-16)~~ ✅ **IMPLEMENTED**
+  - A fully functional web server has been implemented with:
+    - RESTful API for Engrams, Connections, Collections, and Agents
+    - HTML dashboard with real-time database statistics
+    - JSON-based API responses with proper error handling
+    - CORS support and middleware for security
+    - Auto-creation of template and static directories
 
 ## MCP Server (`src/bin/mcp.rs`)
 

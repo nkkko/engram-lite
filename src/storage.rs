@@ -3,9 +3,8 @@ use crate::schema::{
     Agent, AgentId, Collection, CollectionId, Connection, ConnectionId, Context, ContextId, Engram,
     EngramId,
 };
-// Forward declare the Embedding struct and avoid circular dependency
-// Import the embedding module
-use crate::embedding;
+// Forward declare the Embedding struct to avoid circular dependency
+// We don't need to import the embedding module here, as we'll define our own Embedding struct
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Embedding {
@@ -15,25 +14,18 @@ pub struct Embedding {
     pub metadata: std::collections::HashMap<String, String>,
 }
 
-// Conversion from the embedding module's Embedding
-impl From<embedding::Embedding> for Embedding {
-    fn from(e: embedding::Embedding) -> Self {
-        Embedding {
-            vector: e.vector,
-            model: e.model,
-            dimensions: e.dimensions,
-            metadata: e.metadata,
-        }
-    }
-}
+// We'll implement conversion utilities as methods instead of using the From trait
+// to avoid circular dependencies
 
-impl From<&embedding::Embedding> for Embedding {
-    fn from(e: &embedding::Embedding) -> Self {
-        Embedding {
-            vector: e.vector.clone(),
-            model: e.model.clone(),
-            dimensions: e.dimensions,
-            metadata: e.metadata.clone(),
+#[allow(dead_code)]
+impl Embedding {
+    /// Create from vector, model, and dimensions
+    pub fn create(vector: Vec<f32>, model: String, dimensions: usize, metadata: std::collections::HashMap<String, String>) -> Self {
+        Self {
+            vector,
+            model,
+            dimensions,
+            metadata,
         }
     }
 }
@@ -57,6 +49,7 @@ const RELATION_TYPE_PREFIX: &[u8] = b"rel_type:";
 // Embedding prefixes
 #[allow(dead_code)]
 const EMBEDDING_PREFIX: &[u8] = b"embedding:";
+#[allow(dead_code)]
 const REDUCED_EMBEDDING_PREFIX: &[u8] = b"reduced_embedding:";
 
 /// Column family names
@@ -68,6 +61,17 @@ const CF_CONTEXTS: &str = "contexts";
 const CF_METADATA: &str = "metadata";
 const CF_RELATIONSHIPS: &str = "relationships"; // For storing relationship indexes
 const CF_EMBEDDINGS: &str = "embeddings"; // For storing vector embeddings
+
+/// Database statistics structure
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct StorageStats {
+    pub engram_count: usize,
+    pub connection_count: usize,
+    pub collection_count: usize,
+    pub agent_count: usize,
+    pub context_count: usize, 
+    pub db_size_mb: f64,
+}
 
 /// RocksDB-based storage implementation for EngramAI
 pub struct Storage {
@@ -438,6 +442,29 @@ impl Storage {
     fn deserialize<T: DeserializeOwned>(bytes: &[u8]) -> Result<T> {
         serde_json::from_slice(bytes).map_err(|e| EngramError::SerializationError(e.to_string()))
     }
+    
+    /// Get database statistics
+    pub fn get_stats(&self) -> Result<StorageStats> {
+        // Count items in each collection
+        let engram_count = self.list_engrams()?.len();
+        let connection_count = self.list_connections()?.len();
+        let collection_count = self.list_collections()?.len();
+        let agent_count = self.list_agents()?.len();
+        let context_count = self.list_contexts()?.len();
+        
+        // Estimate database size (this is an approximation)
+        // For a more accurate measure, we would need file system operations
+        let db_size_mb = 0.0; // Placeholder - could use another approach for actual size
+        
+        Ok(StorageStats {
+            engram_count,
+            connection_count,
+            collection_count,
+            agent_count,
+            context_count,
+            db_size_mb,
+        })
+    }
 
     /// Creates a key with the appropriate prefix
     fn create_key(prefix: &[u8], id: &str) -> Vec<u8> {
@@ -791,11 +818,13 @@ impl Storage {
 }
 
 /// Represents a transaction in RocksDB (using WriteBatch)
+#[allow(dead_code)]
 pub struct Transaction<'a> {
     batch: WriteBatch,
     db: &'a DB,
 }
 
+#[allow(dead_code)]
 impl<'a> Transaction<'a> {
     /// Add an engram to the transaction
     pub fn put_engram(&mut self, engram: &Engram) -> Result<()> {
