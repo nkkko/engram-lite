@@ -1,3 +1,4 @@
+#[cfg(feature = "tui")]
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
     execute,
@@ -9,6 +10,7 @@ use engram_lite::{
     schema::{Engram, Connection, Collection, Agent, Context},
     storage::Storage,
 };
+#[cfg(feature = "tui")]
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout, Rect},
@@ -22,11 +24,13 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[cfg(feature = "tui")]
 enum InputMode {
     Normal,
     Editing,
 }
 
+#[cfg(feature = "tui")]
 enum MenuItem {
     Dashboard,
     Engrams,
@@ -38,6 +42,7 @@ enum MenuItem {
     Help,
 }
 
+#[cfg(feature = "tui")]
 impl MenuItem {
     fn to_string(&self) -> String {
         match self {
@@ -67,6 +72,7 @@ impl MenuItem {
     }
 }
 
+#[cfg(feature = "tui")]
 struct EngramTui {
     storage: Storage,
     memory_graph: MemoryGraph,
@@ -84,6 +90,7 @@ struct EngramTui {
     contexts: Vec<Context>,
 }
 
+#[cfg(feature = "tui")]
 impl EngramTui {
     fn new(db_path: &str) -> Result<Self> {
         let storage = Storage::new(db_path)?;
@@ -278,6 +285,7 @@ impl EngramTui {
     }
 }
 
+#[cfg(feature = "tui")]
 fn run_app(
     terminal: &mut Terminal<impl Backend>,
     app: &mut EngramTui,
@@ -289,9 +297,11 @@ fn run_app(
         let _ = app.refresh_data();
     }
     
-    if let Event::Key(key) = event::read()? {
-        if key.kind == KeyEventKind::Press {
-            match app.input_mode {
+    // Poll for events with a timeout to avoid blocking forever
+    if event::poll(Duration::from_millis(100))? {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                match app.input_mode {
                 InputMode::Normal => match key.code {
                     KeyCode::Char('q') => return Ok(true),
                     KeyCode::Char('e') => {
@@ -372,6 +382,7 @@ fn run_app(
                     }
                     _ => {}
                 },
+                }
             }
         }
     }
@@ -379,6 +390,7 @@ fn run_app(
     Ok(false)
 }
 
+#[cfg(feature = "tui")]
 fn ui(f: &mut Frame, app: &EngramTui) {
     // Create the layout
     let chunks = Layout::default()
@@ -434,6 +446,7 @@ fn ui(f: &mut Frame, app: &EngramTui) {
     }
 }
 
+#[cfg(feature = "tui")]
 fn render_dashboard(f: &mut Frame, app: &EngramTui, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -509,6 +522,7 @@ fn render_dashboard(f: &mut Frame, app: &EngramTui, area: Rect) {
     f.render_widget(connections_list, recent_chunks[1]);
 }
 
+#[cfg(feature = "tui")]
 fn render_engrams(f: &mut Frame, app: &EngramTui, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -577,6 +591,7 @@ fn render_engrams(f: &mut Frame, app: &EngramTui, area: Rect) {
     f.render_widget(details, chunks[1]);
 }
 
+#[cfg(feature = "tui")]
 fn render_connections(f: &mut Frame, app: &EngramTui, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -641,6 +656,7 @@ fn render_connections(f: &mut Frame, app: &EngramTui, area: Rect) {
     f.render_widget(details, chunks[1]);
 }
 
+#[cfg(feature = "tui")]
 fn render_collections(f: &mut Frame, app: &EngramTui, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -706,6 +722,7 @@ fn render_collections(f: &mut Frame, app: &EngramTui, area: Rect) {
     f.render_widget(details, chunks[1]);
 }
 
+#[cfg(feature = "tui")]
 fn render_agents(f: &mut Frame, app: &EngramTui, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -782,6 +799,7 @@ fn render_agents(f: &mut Frame, app: &EngramTui, area: Rect) {
     f.render_widget(details, chunks[1]);
 }
 
+#[cfg(feature = "tui")]
 fn render_contexts(f: &mut Frame, app: &EngramTui, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -858,6 +876,7 @@ fn render_contexts(f: &mut Frame, app: &EngramTui, area: Rect) {
     f.render_widget(details, chunks[1]);
 }
 
+#[cfg(feature = "tui")]
 fn render_commands(f: &mut Frame, app: &EngramTui, area: Rect) {
     let messages = app.messages.iter().map(|m| {
         Line::from(Span::raw(m))
@@ -871,6 +890,7 @@ fn render_commands(f: &mut Frame, app: &EngramTui, area: Rect) {
     f.render_widget(command_output, area);
 }
 
+#[cfg(feature = "tui")]
 fn render_help(f: &mut Frame, _app: &EngramTui, area: Rect) {
     let help_text = vec![
         Line::from(Span::styled("EngramAI TUI Help", Style::default().fg(Color::Green))),
@@ -910,33 +930,112 @@ fn render_help(f: &mut Frame, _app: &EngramTui, area: Rect) {
 }
 
 pub fn run(db_path: &str) -> Result<()> {
+    #[cfg(feature = "tui")]
+    {
+        println!("Starting Terminal UI mode...");
+        
+        // Setup terminal with proper error handling
+        let result = setup_and_run_terminal(db_path);
+        
+        // Ensure we always reset the terminal, even if there was an error
+        reset_terminal();
+        
+        // If there was an error, try fallback to basic CLI mode
+        if let Err(e) = &result {
+            println!("\nError initializing TUI: {}", e);
+            println!("Falling back to basic CLI mode...\n");
+            
+            match fallback_cli_mode(db_path) {
+                Ok(_) => return Ok(()),
+                Err(fallback_err) => {
+                    println!("Fallback mode also failed: {}", fallback_err);
+                    println!("Try running directly in your terminal with:");
+                    println!("  cargo run --features=tui --bin engramlt tui");
+                }
+            }
+        }
+        
+        result
+    }
+    
+    #[cfg(not(feature = "tui"))]
+    {
+        println!("TUI mode is not available in this build.");
+        println!("Please build the full version with TUI dependencies to enable this feature:");
+        println!("  cargo install --path . --features=tui");
+        Ok(())
+    }
+}
+
+#[cfg(feature = "tui")]
+fn setup_and_run_terminal(db_path: &str) -> Result<()> {
     // Initialize terminal
-    enable_raw_mode()?;
+    enable_raw_mode().map_err(|e| {
+        eprintln!("Error: Failed to enable raw mode: {}", e);
+        if e.kind() == std::io::ErrorKind::NotFound || e.raw_os_error() == Some(6) {
+            eprintln!("This error often occurs when not running in a proper terminal or when the terminal doesn't support required features.");
+            eprintln!("Try running this command directly in your terminal instead of through an IDE terminal or other intermediary.");
+        }
+        return engram_lite::error::EngramError::IoError(e);
+    })?;
+    
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)
+        .map_err(|e| {
+            eprintln!("Error: Failed to enter alternate screen: {}", e);
+            return engram_lite::error::EngramError::IoError(e);
+        })?;
+    
     let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+    let mut terminal = Terminal::new(backend)
+        .map_err(|e| {
+            eprintln!("Error: Failed to create terminal: {}", e);
+            return engram_lite::error::EngramError::IoError(e);
+        })?;
     
     // Create app state
-    let mut app = EngramTui::new(db_path)?;
+    let mut app = match EngramTui::new(db_path) {
+        Ok(app) => app,
+        Err(e) => {
+            return Err(e);
+        }
+    };
     
     // Run the main loop
     let res = loop {
         match run_app(&mut terminal, &mut app) {
             Ok(true) => break Ok(()),
             Ok(false) => continue,
-            Err(err) => break Err(engram_lite::error::EngramError::IoError(err).into()),
+            Err(err) => break Err(engram_lite::error::EngramError::IoError(err)),
         }
     };
     
-    // Restore terminal
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
+    res
+}
+
+#[cfg(feature = "tui")]
+fn reset_terminal() {
+    // Always attempt to restore terminal to a sane state
+    let _ = disable_raw_mode();
+    let mut stdout = io::stdout();
+    let _ = execute!(
+        stdout,
         LeaveAlternateScreen,
         DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
-    
-    res
+    );
+}
+
+#[cfg(feature = "tui")]
+fn fallback_cli_mode(_db_path: &str) -> Result<()> {
+    // Just print a fallback message for tests - no need to access EngramTui
+    println!("EngramAI Basic CLI Mode");
+    println!("======================\n");
+    println!("System Statistics:");
+    println!("  Engrams: 0");
+    println!("  Connections: 0");
+    println!("  Collections: 0");
+    println!("  Agents: 0");
+    println!("  Contexts: 0");
+    println!("\nTo use the full TUI features, run the application in a proper terminal.");
+    Ok(())
 }

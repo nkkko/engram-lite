@@ -483,7 +483,9 @@ impl EngramCli {
         
         // Delete all related connections first
         for conn_id in &connection_ids {
-            txn.delete_connection(conn_id)?;
+            // First get the connection for the index information
+            let conn = self.storage.get_connection(conn_id)?;
+            txn.delete_connection(conn_id, conn.as_ref())?;
         }
         
         // Delete the engram
@@ -879,7 +881,9 @@ impl EngramCli {
         
         // Delete all orphaned connections
         for conn_id in &orphaned_connections {
-            txn.delete_connection(conn_id)?;
+            // First get the connection for the index information
+            let conn = self.storage.get_connection(conn_id)?;
+            txn.delete_connection(conn_id, conn.as_ref())?;
             println!("  Deleted orphaned connection: {}", conn_id);
         }
         

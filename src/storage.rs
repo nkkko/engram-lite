@@ -3,6 +3,40 @@ use crate::schema::{
     Agent, AgentId, Collection, CollectionId, Connection, ConnectionId, Context, ContextId, Engram,
     EngramId,
 };
+// Forward declare the Embedding struct and avoid circular dependency
+// Import the embedding module
+use crate::embedding;
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Embedding {
+    pub vector: Vec<f32>,
+    pub model: String,
+    pub dimensions: usize,
+    pub metadata: std::collections::HashMap<String, String>,
+}
+
+// Conversion from the embedding module's Embedding
+impl From<embedding::Embedding> for Embedding {
+    fn from(e: embedding::Embedding) -> Self {
+        Embedding {
+            vector: e.vector,
+            model: e.model,
+            dimensions: e.dimensions,
+            metadata: e.metadata,
+        }
+    }
+}
+
+impl From<&embedding::Embedding> for Embedding {
+    fn from(e: &embedding::Embedding) -> Self {
+        Embedding {
+            vector: e.vector.clone(),
+            model: e.model.clone(),
+            dimensions: e.dimensions,
+            metadata: e.metadata.clone(),
+        }
+    }
+}
 use rocksdb::{ColumnFamilyDescriptor, Options, DB, WriteBatch, IteratorMode};
 use serde::{de::DeserializeOwned, Serialize};
 use std::path::Path;
@@ -15,6 +49,16 @@ const COLLECTION_PREFIX: &[u8] = b"collection:";
 const AGENT_PREFIX: &[u8] = b"agent:";
 const CONTEXT_PREFIX: &[u8] = b"context:";
 
+// Additional prefixes for indexes
+const SOURCE_CONNECTION_PREFIX: &[u8] = b"source_conn:";
+const TARGET_CONNECTION_PREFIX: &[u8] = b"target_conn:";
+const RELATION_TYPE_PREFIX: &[u8] = b"rel_type:";
+
+// Embedding prefixes
+#[allow(dead_code)]
+const EMBEDDING_PREFIX: &[u8] = b"embedding:";
+const REDUCED_EMBEDDING_PREFIX: &[u8] = b"reduced_embedding:";
+
 /// Column family names
 const CF_ENGRAMS: &str = "engrams";
 const CF_CONNECTIONS: &str = "connections";
@@ -22,6 +66,8 @@ const CF_COLLECTIONS: &str = "collections";
 const CF_AGENTS: &str = "agents";
 const CF_CONTEXTS: &str = "contexts";
 const CF_METADATA: &str = "metadata";
+const CF_RELATIONSHIPS: &str = "relationships"; // For storing relationship indexes
+const CF_EMBEDDINGS: &str = "embeddings"; // For storing vector embeddings
 
 /// RocksDB-based storage implementation for EngramAI
 pub struct Storage {
@@ -43,6 +89,8 @@ impl Storage {
             CF_AGENTS,
             CF_CONTEXTS,
             CF_METADATA,
+            CF_RELATIONSHIPS,
+            CF_EMBEDDINGS,
         ];
 
         let cf_descriptors: Vec<_> = cf_names
@@ -178,31 +226,207 @@ impl Storage {
     
     /// Find all connections related to a specific engram (either as source or target)
     pub fn find_connections_for_engram(&self, engram_id: &EngramId) -> Result<HashSet<ConnectionId>> {
-        let cf = self.db.cf_handle(CF_CONNECTIONS).ok_or_else(|| {
-            EngramError::StorageError(format!("Column family {} not found", CF_CONNECTIONS))
+        // Get outgoing and incoming connections from the relationship index
+        let mut connection_ids = HashSet::new();
+        
+        // Add outgoing connections
+        connection_ids.extend(self.find_outgoing_connections(engram_id)?);
+        
+        // Add incoming connections
+        connection_ids.extend(self.find_incoming_connections(engram_id)?);
+        
+        Ok(connection_ids)
+    }
+    
+    /// Find all outgoing connections from a source engram
+    pub fn find_outgoing_connections(&self, source_id: &EngramId) -> Result<HashSet<ConnectionId>> {
+        let cf = self.db.cf_handle(CF_RELATIONSHIPS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_RELATIONSHIPS))
         })?;
         
         let mut connection_ids = HashSet::new();
-        let iter = self.db.iterator_cf(cf, IteratorMode::Start);
+        
+        // Create the prefix for the source engram
+        let prefix = [SOURCE_CONNECTION_PREFIX, source_id.as_bytes()].concat();
+        
+        // Iterate through keys with this prefix
+        let iter = self.db.prefix_iterator_cf(cf, &prefix);
         
         for result in iter {
-            let (key, value) = result.map_err(|e| EngramError::StorageError(e.to_string()))?;
+            let (key, _) = result.map_err(|e| EngramError::StorageError(e.to_string()))?;
             
-            // Extract ID from key (remove the prefix)
-            if key.starts_with(CONNECTION_PREFIX) {
-                let id_bytes = &key[CONNECTION_PREFIX.len()..];
-                let id = String::from_utf8_lossy(id_bytes).to_string();
-                
-                // Deserialize the connection to check if it involves the engram
-                let connection: Connection = Self::deserialize(&value)?;
-                
-                if connection.source_id == *engram_id || connection.target_id == *engram_id {
-                    connection_ids.insert(id);
-                }
+            // Extract connection ID from the key
+            // Key format: source_conn:{source_id}:{connection_id}
+            let parts: Vec<&[u8]> = key.split(|&b| b == b':').collect();
+            if parts.len() >= 3 {
+                let connection_id = String::from_utf8_lossy(parts[2]).to_string();
+                connection_ids.insert(connection_id);
             }
         }
         
         Ok(connection_ids)
+    }
+    
+    /// Find all incoming connections to a target engram
+    pub fn find_incoming_connections(&self, target_id: &EngramId) -> Result<HashSet<ConnectionId>> {
+        let cf = self.db.cf_handle(CF_RELATIONSHIPS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_RELATIONSHIPS))
+        })?;
+        
+        let mut connection_ids = HashSet::new();
+        
+        // Create the prefix for the target engram
+        let prefix = [TARGET_CONNECTION_PREFIX, target_id.as_bytes()].concat();
+        
+        // Iterate through keys with this prefix
+        let iter = self.db.prefix_iterator_cf(cf, &prefix);
+        
+        for result in iter {
+            let (key, _) = result.map_err(|e| EngramError::StorageError(e.to_string()))?;
+            
+            // Extract connection ID from the key
+            // Key format: target_conn:{target_id}:{connection_id}
+            let parts: Vec<&[u8]> = key.split(|&b| b == b':').collect();
+            if parts.len() >= 3 {
+                let connection_id = String::from_utf8_lossy(parts[2]).to_string();
+                connection_ids.insert(connection_id);
+            }
+        }
+        
+        Ok(connection_ids)
+    }
+    
+    /// Find all connections with a specific relationship type
+    pub fn find_connections_by_type(&self, relationship_type: &str) -> Result<HashSet<ConnectionId>> {
+        let cf = self.db.cf_handle(CF_RELATIONSHIPS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_RELATIONSHIPS))
+        })?;
+        
+        let mut connection_ids = HashSet::new();
+        
+        // Create the prefix for the relationship type
+        let prefix = [RELATION_TYPE_PREFIX, relationship_type.as_bytes()].concat();
+        
+        // Iterate through keys with this prefix
+        let iter = self.db.prefix_iterator_cf(cf, &prefix);
+        
+        for result in iter {
+            let (key, _) = result.map_err(|e| EngramError::StorageError(e.to_string()))?;
+            
+            // Extract connection ID from the key
+            // Key format: rel_type:{relationship_type}:{connection_id}
+            let parts: Vec<&[u8]> = key.split(|&b| b == b':').collect();
+            if parts.len() >= 3 {
+                let connection_id = String::from_utf8_lossy(parts[2]).to_string();
+                connection_ids.insert(connection_id);
+            }
+        }
+        
+        Ok(connection_ids)
+    }
+    
+    //
+    // Embedding Operations
+    //
+    
+    /// Store an embedding for an engram
+    pub fn put_embedding(&self, engram_id: &EngramId, embedding: &Embedding) -> Result<()> {
+        let cf = self.db.cf_handle(CF_EMBEDDINGS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_EMBEDDINGS))
+        })?;
+        
+        let key = engram_id.as_bytes();
+        let value = Self::serialize(embedding)?;
+        
+        self.db
+            .put_cf(cf, key, value)
+            .map_err(|e| EngramError::StorageError(e.to_string()))
+    }
+    
+    /// Retrieve an embedding for an engram
+    pub fn get_embedding(&self, engram_id: &EngramId) -> Result<Option<Embedding>> {
+        let cf = self.db.cf_handle(CF_EMBEDDINGS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_EMBEDDINGS))
+        })?;
+        
+        let key = engram_id.as_bytes();
+        
+        match self.db.get_cf(cf, key)? {
+            Some(bytes) => Ok(Some(Self::deserialize(&bytes)?)),
+            None => Ok(None),
+        }
+    }
+    
+    /// Store a reduced (dimensionality-reduced) embedding for an engram
+    pub fn put_reduced_embedding(&self, engram_id: &EngramId, embedding: &Embedding) -> Result<()> {
+        let cf = self.db.cf_handle(CF_EMBEDDINGS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_EMBEDDINGS))
+        })?;
+        
+        let key = [REDUCED_EMBEDDING_PREFIX, engram_id.as_bytes()].concat();
+        let value = Self::serialize(embedding)?;
+        
+        self.db
+            .put_cf(cf, key, value)
+            .map_err(|e| EngramError::StorageError(e.to_string()))
+    }
+
+    /// Retrieve a reduced embedding for an engram
+    pub fn get_reduced_embedding(&self, engram_id: &EngramId) -> Result<Option<Embedding>> {
+        let cf = self.db.cf_handle(CF_EMBEDDINGS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_EMBEDDINGS))
+        })?;
+        
+        let key = [REDUCED_EMBEDDING_PREFIX, engram_id.as_bytes()].concat();
+        
+        match self.db.get_cf(cf, key)? {
+            Some(bytes) => Ok(Some(Self::deserialize(&bytes)?)),
+            None => Ok(None),
+        }
+    }
+    
+    /// Delete a reduced embedding for an engram
+    pub fn delete_reduced_embedding(&self, engram_id: &EngramId) -> Result<()> {
+        let cf = self.db.cf_handle(CF_EMBEDDINGS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_EMBEDDINGS))
+        })?;
+        
+        let key = [REDUCED_EMBEDDING_PREFIX, engram_id.as_bytes()].concat();
+        
+        self.db
+            .delete_cf(cf, key)
+            .map_err(|e| EngramError::StorageError(e.to_string()))
+    }
+    
+    /// Delete an embedding for an engram
+    pub fn delete_embedding(&self, engram_id: &EngramId) -> Result<()> {
+        let cf = self.db.cf_handle(CF_EMBEDDINGS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_EMBEDDINGS))
+        })?;
+        
+        let key = engram_id.as_bytes();
+        
+        self.db
+            .delete_cf(cf, key)
+            .map_err(|e| EngramError::StorageError(e.to_string()))
+    }
+    
+    /// List all embeddings in the database
+    pub fn list_embeddings(&self) -> Result<Vec<EngramId>> {
+        let cf = self.db.cf_handle(CF_EMBEDDINGS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_EMBEDDINGS))
+        })?;
+        
+        let mut engram_ids = Vec::new();
+        let iter = self.db.iterator_cf(cf, IteratorMode::Start);
+        
+        for result in iter {
+            let (key, _) = result.map_err(|e| EngramError::StorageError(e.to_string()))?;
+            let id = String::from_utf8_lossy(&key).to_string();
+            engram_ids.push(id);
+        }
+        
+        Ok(engram_ids)
     }
 
     /// Helper method to serialize an object to JSON bytes
@@ -281,9 +505,64 @@ impl Storage {
         let key = Self::create_key(CONNECTION_PREFIX, &connection.id);
         let value = Self::serialize(connection)?;
 
+        // Store the main connection record
         self.db
             .put_cf(cf, key, value)
-            .map_err(|e| EngramError::StorageError(e.to_string()))
+            .map_err(|e| EngramError::StorageError(e.to_string()))?;
+        
+        // Also store relationship indexes for faster traversal
+        self.index_connection(connection)?;
+        
+        Ok(())
+    }
+    
+    /// Store relationship indexes for a connection
+    fn index_connection(&self, connection: &Connection) -> Result<()> {
+        let cf = self.db.cf_handle(CF_RELATIONSHIPS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_RELATIONSHIPS))
+        })?;
+        
+        // Index by source engram
+        let source_key = Self::create_relationship_key(
+            SOURCE_CONNECTION_PREFIX, 
+            &connection.source_id, 
+            &connection.id
+        );
+        self.db
+            .put_cf(cf, source_key, vec![])
+            .map_err(|e| EngramError::StorageError(e.to_string()))?;
+        
+        // Index by target engram
+        let target_key = Self::create_relationship_key(
+            TARGET_CONNECTION_PREFIX, 
+            &connection.target_id, 
+            &connection.id
+        );
+        self.db
+            .put_cf(cf, target_key, vec![])
+            .map_err(|e| EngramError::StorageError(e.to_string()))?;
+        
+        // Index by relationship type
+        let rel_type_key = Self::create_relationship_key(
+            RELATION_TYPE_PREFIX, 
+            &connection.relationship_type, 
+            &connection.id
+        );
+        self.db
+            .put_cf(cf, rel_type_key, vec![])
+            .map_err(|e| EngramError::StorageError(e.to_string()))?;
+        
+        Ok(())
+    }
+    
+    /// Helper to create relationship index keys
+    fn create_relationship_key(prefix: &[u8], entity_id: &str, connection_id: &str) -> Vec<u8> {
+        let mut key = Vec::with_capacity(prefix.len() + entity_id.len() + 1 + connection_id.len());
+        key.extend_from_slice(prefix);
+        key.extend_from_slice(entity_id.as_bytes());
+        key.push(b':');
+        key.extend_from_slice(connection_id.as_bytes());
+        key
     }
 
     /// Retrieves a connection from the database by ID
@@ -302,15 +581,65 @@ impl Storage {
 
     /// Deletes a connection from the database by ID
     pub fn delete_connection(&self, id: &ConnectionId) -> Result<()> {
-        let cf = self.db.cf_handle(CF_CONNECTIONS).ok_or_else(|| {
-            EngramError::StorageError(format!("Column family {} not found", CF_CONNECTIONS))
+        // First get the connection to remove indexes
+        let connection = self.get_connection(id)?;
+        
+        if let Some(connection) = connection {
+            // First delete relationship indexes
+            self.delete_relationship_indexes(&connection)?;
+            
+            // Then delete the main connection record
+            let cf = self.db.cf_handle(CF_CONNECTIONS).ok_or_else(|| {
+                EngramError::StorageError(format!("Column family {} not found", CF_CONNECTIONS))
+            })?;
+
+            let key = Self::create_key(CONNECTION_PREFIX, id);
+
+            self.db
+                .delete_cf(cf, key)
+                .map_err(|e| EngramError::StorageError(e.to_string()))?;
+        }
+        
+        Ok(())
+    }
+    
+    /// Delete relationship indexes for a connection
+    fn delete_relationship_indexes(&self, connection: &Connection) -> Result<()> {
+        let cf = self.db.cf_handle(CF_RELATIONSHIPS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_RELATIONSHIPS))
         })?;
-
-        let key = Self::create_key(CONNECTION_PREFIX, id);
-
+        
+        // Delete source index
+        let source_key = Self::create_relationship_key(
+            SOURCE_CONNECTION_PREFIX, 
+            &connection.source_id, 
+            &connection.id
+        );
         self.db
-            .delete_cf(cf, key)
-            .map_err(|e| EngramError::StorageError(e.to_string()))
+            .delete_cf(cf, source_key)
+            .map_err(|e| EngramError::StorageError(e.to_string()))?;
+        
+        // Delete target index
+        let target_key = Self::create_relationship_key(
+            TARGET_CONNECTION_PREFIX, 
+            &connection.target_id, 
+            &connection.id
+        );
+        self.db
+            .delete_cf(cf, target_key)
+            .map_err(|e| EngramError::StorageError(e.to_string()))?;
+        
+        // Delete relationship type index
+        let rel_type_key = Self::create_relationship_key(
+            RELATION_TYPE_PREFIX, 
+            &connection.relationship_type, 
+            &connection.id
+        );
+        self.db
+            .delete_cf(cf, rel_type_key)
+            .map_err(|e| EngramError::StorageError(e.to_string()))?;
+        
+        Ok(())
     }
 
     //
@@ -483,6 +812,7 @@ impl<'a> Transaction<'a> {
 
     /// Add a connection to the transaction
     pub fn put_connection(&mut self, connection: &Connection) -> Result<()> {
+        // Add the main connection record
         let cf = self.db.cf_handle(CF_CONNECTIONS).ok_or_else(|| {
             EngramError::StorageError(format!("Column family {} not found", CF_CONNECTIONS))
         })?;
@@ -491,6 +821,43 @@ impl<'a> Transaction<'a> {
         let value = Storage::serialize(connection)?;
 
         self.batch.put_cf(cf, key, value);
+        
+        // Add relationship indexes
+        self.index_connection(connection)?;
+        
+        Ok(())
+    }
+    
+    /// Add relationship indexes for a connection to the transaction
+    fn index_connection(&mut self, connection: &Connection) -> Result<()> {
+        let cf = self.db.cf_handle(CF_RELATIONSHIPS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_RELATIONSHIPS))
+        })?;
+        
+        // Index by source engram
+        let source_key = Storage::create_relationship_key(
+            SOURCE_CONNECTION_PREFIX, 
+            &connection.source_id, 
+            &connection.id
+        );
+        self.batch.put_cf(cf, source_key, vec![]);
+        
+        // Index by target engram
+        let target_key = Storage::create_relationship_key(
+            TARGET_CONNECTION_PREFIX, 
+            &connection.target_id, 
+            &connection.id
+        );
+        self.batch.put_cf(cf, target_key, vec![]);
+        
+        // Index by relationship type
+        let rel_type_key = Storage::create_relationship_key(
+            RELATION_TYPE_PREFIX, 
+            &connection.relationship_type, 
+            &connection.id
+        );
+        self.batch.put_cf(cf, rel_type_key, vec![]);
+        
         Ok(())
     }
 
@@ -545,13 +912,53 @@ impl<'a> Transaction<'a> {
     }
 
     /// Delete a connection in the transaction
-    pub fn delete_connection(&mut self, id: &ConnectionId) -> Result<()> {
+    pub fn delete_connection(&mut self, id: &ConnectionId, connection: Option<&Connection>) -> Result<()> {
+        // Delete the main connection record
         let cf = self.db.cf_handle(CF_CONNECTIONS).ok_or_else(|| {
             EngramError::StorageError(format!("Column family {} not found", CF_CONNECTIONS))
         })?;
 
         let key = Storage::create_key(CONNECTION_PREFIX, id);
         self.batch.delete_cf(cf, key);
+        
+        // Delete relationship indexes if connection is provided
+        if let Some(conn) = connection {
+            self.delete_relationship_indexes(conn)?;
+        }
+        
+        Ok(())
+    }
+    
+    /// Delete relationship indexes for a connection in the transaction
+    fn delete_relationship_indexes(&mut self, connection: &Connection) -> Result<()> {
+        let cf = self.db.cf_handle(CF_RELATIONSHIPS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_RELATIONSHIPS))
+        })?;
+        
+        // Delete source index
+        let source_key = Storage::create_relationship_key(
+            SOURCE_CONNECTION_PREFIX, 
+            &connection.source_id, 
+            &connection.id
+        );
+        self.batch.delete_cf(cf, source_key);
+        
+        // Delete target index
+        let target_key = Storage::create_relationship_key(
+            TARGET_CONNECTION_PREFIX, 
+            &connection.target_id, 
+            &connection.id
+        );
+        self.batch.delete_cf(cf, target_key);
+        
+        // Delete relationship type index
+        let rel_type_key = Storage::create_relationship_key(
+            RELATION_TYPE_PREFIX, 
+            &connection.relationship_type, 
+            &connection.id
+        );
+        self.batch.delete_cf(cf, rel_type_key);
+        
         Ok(())
     }
 
@@ -584,6 +991,54 @@ impl<'a> Transaction<'a> {
         })?;
 
         let key = Storage::create_key(CONTEXT_PREFIX, id);
+        self.batch.delete_cf(cf, key);
+        Ok(())
+    }
+    
+    /// Add an embedding to the transaction
+    pub fn put_embedding(&mut self, engram_id: &EngramId, embedding: &Embedding) -> Result<()> {
+        let cf = self.db.cf_handle(CF_EMBEDDINGS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_EMBEDDINGS))
+        })?;
+        
+        let key = engram_id.as_bytes();
+        let value = Storage::serialize(embedding)?;
+        
+        self.batch.put_cf(cf, key, value);
+        Ok(())
+    }
+    
+    /// Add a reduced embedding to the transaction
+    pub fn put_reduced_embedding(&mut self, engram_id: &EngramId, embedding: &Embedding) -> Result<()> {
+        let cf = self.db.cf_handle(CF_EMBEDDINGS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_EMBEDDINGS))
+        })?;
+        
+        let key = [REDUCED_EMBEDDING_PREFIX, engram_id.as_bytes()].concat();
+        let value = Storage::serialize(embedding)?;
+        
+        self.batch.put_cf(cf, key, value);
+        Ok(())
+    }
+    
+    /// Delete a reduced embedding in the transaction
+    pub fn delete_reduced_embedding(&mut self, engram_id: &EngramId) -> Result<()> {
+        let cf = self.db.cf_handle(CF_EMBEDDINGS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_EMBEDDINGS))
+        })?;
+        
+        let key = [REDUCED_EMBEDDING_PREFIX, engram_id.as_bytes()].concat();
+        self.batch.delete_cf(cf, key);
+        Ok(())
+    }
+
+    /// Delete an embedding in the transaction
+    pub fn delete_embedding(&mut self, engram_id: &EngramId) -> Result<()> {
+        let cf = self.db.cf_handle(CF_EMBEDDINGS).ok_or_else(|| {
+            EngramError::StorageError(format!("Column family {} not found", CF_EMBEDDINGS))
+        })?;
+        
+        let key = engram_id.as_bytes();
         self.batch.delete_cf(cf, key);
         Ok(())
     }

@@ -2,6 +2,9 @@ mod schema;
 mod storage;
 mod graph;
 mod error;
+mod benchmark;
+mod index;
+mod query;
 
 use crate::error::Result;
 use crate::graph::MemoryGraph;
@@ -187,12 +190,59 @@ fn run_demo() -> Result<()> {
     Ok(())
 }
 
+/// Run benchmarks for performance testing
+fn run_benchmarks() -> Result<()> {
+    use crate::benchmark::run_all_benchmarks;
+    use crate::index::SearchIndex;
+    use tempfile::tempdir;
+
+    println!("Running benchmarks...");
+
+    // Create a temporary directory for the database
+    let dir = tempdir().map_err(|e| error::EngramError::IoError(e))?;
+    let db_path = dir.path().to_str().unwrap();
+    
+    // Initialize storage and index
+    let storage = Storage::new(db_path)?;
+    let index = SearchIndex::new();
+    
+    // Run benchmarks
+    let results = run_all_benchmarks(&storage, &index)?;
+    
+    // Print results
+    println!("\nBenchmark Results:");
+    println!("=================");
+    
+    for result in results {
+        println!("\n{}", result.format());
+    }
+    
+    // Clean up temp directory
+    dir.close().map_err(|e| error::EngramError::IoError(e))?;
+    
+    println!("\nBenchmarks completed successfully!");
+    Ok(())
+}
+
 fn main() {
+    use std::env;
+    
     println!("EngramAI - Memory Graph System");
+    
+    // Check command line arguments
+    let args: Vec<String> = env::args().collect();
+    
+    if args.len() > 1 && args[1] == "--benchmark" {
+        // Run benchmarks
+        if let Err(e) = run_benchmarks() {
+            eprintln!("Error during benchmarks: {}", e);
+        }
+        return;
+    }
     
     // Load API key from .env
     match engram_lite::get_anthropic_api_key() {
-        Some(api_key) => {
+        Some(_) => {
             println!("Anthropic API key found.");
             // This would be used for LLM integration later
         }

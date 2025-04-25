@@ -398,7 +398,7 @@ impl EngramCli {
         
         // Delete all related connections first
         for conn_id in &connection_ids {
-            txn.delete_connection(conn_id)?;
+            txn.delete_connection(conn_id, None)?;
         }
         
         // Delete the engram
@@ -734,8 +734,20 @@ fn show_help() {
     println!("  engramlt tui               # Start TUI mode with default settings");
 }
 
-// Import tui module
+#[cfg(feature = "tui")]
 mod tui;
+
+#[cfg(not(feature = "tui"))]
+mod tui {
+    use engram_lite::error::Result;
+    
+    pub fn run(_db_path: &str) -> Result<()> {
+        println!("TUI mode is not available in this build.");
+        println!("Please build the full version with TUI dependencies to enable this feature:");
+        println!("cargo install --path . --features=tui");
+        Ok(())
+    }
+}
 
 fn main() -> Result<()> {
     // Load environment variables from .env file

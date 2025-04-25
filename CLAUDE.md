@@ -64,6 +64,74 @@ EngramAI is a knowledge memory graph system for AI agents, designed to store and
 - Performance optimizations for large graphs
 - Improved LLM integration with dedicated tools
 
+## Versioning and Release Process
+
+### Version Numbering
+- Follow semantic versioning (SemVer) with MAJOR.MINOR.PATCH format:
+  - MAJOR: Breaking changes that require significant adjustments by users
+  - MINOR: New features and functionality in a backward-compatible manner
+  - PATCH: Backward-compatible bug fixes and minor improvements
+- Example: 0.3.1 indicates development phase, third feature milestone, first patch
+
+### Release Process
+1. Update version number in:
+   - Cargo.toml (version = "x.y.z")
+   - src/main.rs (or other appropriate version declaration file)
+   - README.md (if version is mentioned)
+
+2. Run the full test suite:
+   ```bash
+   cargo test
+   ```
+
+3. Create a version tag in git:
+   ```bash
+   git tag -a v0.3.1 -m "Release version 0.3.1"
+   ```
+
+4. Push the tag to remote repository:
+   ```bash
+   git push origin v0.3.1
+   ```
+
+5. Create a GitHub release (if applicable):
+   - Draft a new release on GitHub
+   - Select the version tag
+   - Include release notes with changes, improvements, and fixes
+   - Attach any compiled binaries if appropriate
+
+6. On milestone completion (when all tasks in a milestone are done):
+   - Increment MINOR version number (e.g., 0.3.0 → 0.4.0)
+   - Tag and push as described above
+
+### Version Archive
+- Always keep at least 3 previous versions accessible
+- Do not delete old version tags
+- Store compiled binaries for major releases
+- Document breaking changes between major versions
+
+### Reverting to Previous Versions
+To check out a specific version for testing or comparison:
+```bash
+git checkout tags/v0.2.3
+```
+
+To return to the current development branch:
+```bash
+git checkout main
+```
+
+### Version Documentation
+Include a CHANGELOG.md file that documents:
+- Version number and release date
+- New features added in each version
+- Bug fixes and improvements
+- Known issues and limitations
+- Breaking changes and migration paths
+
 ## Commit Messages
 - Ensure that commit messages follow a consistent format and provide clear descriptions of changes made to the code.
 - Never attribute commits to Claude Code
+- Format: "[type] Brief description of changes"
+  - Types: feat, fix, docs, style, refactor, test, chore
+  - Example: "[feat] Add vector embedding support for engrams"

@@ -19,6 +19,21 @@ EngramAI Lite includes a Terminal User Interface (TUI) mode that provides an int
 
 The TUI is built using [ratatui](https://github.com/ratatui-org/ratatui) v0.29.0, a Rust library for building rich terminal user interfaces, and [crossterm](https://github.com/crossterm-rs/crossterm) for terminal manipulation.
 
+## Installation
+
+The TUI features are optional and require the `tui` feature flag to be enabled:
+
+```bash
+# Install EngramAI Lite with TUI support
+cargo install --path . --features=tui
+```
+
+If you're building from source, you'll need to include the `tui` feature flag:
+
+```bash
+cargo build --features=tui
+```
+
 ## Usage
 
 ```bash
@@ -28,6 +43,25 @@ engramlt tui
 # Specify a database path
 engramlt tui --db-path /path/to/database
 ```
+
+### Terminal Requirements
+
+The TUI requires a compatible terminal with support for:
+- ANSI escape sequences
+- Direct terminal access (not redirected I/O)
+- Raw mode support
+
+For best results, run the TUI in a native terminal application rather than through an IDE's integrated terminal or other intermediary.
+
+### Fallback Mode
+
+If the TUI cannot initialize the terminal (e.g., due to incompatible terminal, insufficient permissions, or running in a non-interactive environment), it will automatically fall back to a simplified CLI mode that displays:
+
+- System statistics
+- Recent engrams
+- Basic information
+
+The fallback mode does not support interactive navigation or commands but ensures that the application can still provide useful information when full TUI functionality is not available.
 
 ## Navigation
 

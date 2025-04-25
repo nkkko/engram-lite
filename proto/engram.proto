@@ -1,0 +1,368 @@
+syntax = "proto3";
+
+package engram.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/engramai/proto/engram";
+option java_multiple_files = true;
+option java_package = "com.engramai.proto.engram";
+option java_outer_classname = "EngramProto";
+
+// The EngramService provides access to the EngramAI memory system
+service EngramService {
+  // Engram operations
+  rpc CreateEngram(CreateEngramRequest) returns (CreateEngramResponse);
+  rpc GetEngram(GetEngramRequest) returns (GetEngramResponse);
+  rpc UpdateEngram(UpdateEngramRequest) returns (UpdateEngramResponse);
+  rpc DeleteEngram(DeleteEngramRequest) returns (DeleteEngramResponse);
+  rpc ListEngrams(ListEngramsRequest) returns (ListEngramsResponse);
+
+  // Connection operations
+  rpc CreateConnection(CreateConnectionRequest) returns (CreateConnectionResponse);
+  rpc GetConnection(GetConnectionRequest) returns (GetConnectionResponse);
+  rpc UpdateConnection(UpdateConnectionRequest) returns (UpdateConnectionResponse);
+  rpc DeleteConnection(DeleteConnectionRequest) returns (DeleteConnectionResponse);
+  rpc ListConnections(ListConnectionsRequest) returns (ListConnectionsResponse);
+
+  // Collection operations
+  rpc CreateCollection(CreateCollectionRequest) returns (CreateCollectionResponse);
+  rpc GetCollection(GetCollectionRequest) returns (GetCollectionResponse);
+  rpc UpdateCollection(UpdateCollectionRequest) returns (UpdateCollectionResponse);
+  rpc DeleteCollection(DeleteCollectionRequest) returns (DeleteCollectionResponse);
+  rpc ListCollections(ListCollectionsRequest) returns (ListCollectionsResponse);
+  
+  // Query operations
+  rpc SearchByText(SearchByTextRequest) returns (SearchResponse);
+  rpc SearchByVector(SearchByVectorRequest) returns (SearchResponse);
+  rpc SearchHybrid(SearchHybridRequest) returns (SearchResponse);
+  rpc FindConnections(FindConnectionsRequest) returns (FindConnectionsResponse);
+  
+  // Embedding operations
+  rpc GenerateEmbedding(GenerateEmbeddingRequest) returns (GenerateEmbeddingResponse);
+}
+
+// Basic data types
+
+message Engram {
+  string id = 1;
+  string content = 2;
+  string source = 3;
+  double confidence = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  google.protobuf.Struct metadata = 7;
+}
+
+message Connection {
+  string id = 1;
+  string source_id = 2;
+  string target_id = 3;
+  string relationship_type = 4;
+  double weight = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  google.protobuf.Struct metadata = 8;
+}
+
+message Collection {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string engram_ids = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  google.protobuf.Struct metadata = 7;
+}
+
+message Embedding {
+  repeated float vector = 1;
+  string model = 2;
+  uint32 dimensions = 3;
+  google.protobuf.Struct metadata = 4;
+}
+
+// Common response types
+
+message Status {
+  uint32 code = 1;
+  string message = 2;
+}
+
+// Engram request/response messages
+
+message CreateEngramRequest {
+  string content = 1;
+  string source = 2;
+  double confidence = 3;
+  google.protobuf.Struct metadata = 4;
+}
+
+message CreateEngramResponse {
+  Status status = 1;
+  Engram engram = 2;
+}
+
+message GetEngramRequest {
+  string id = 1;
+}
+
+message GetEngramResponse {
+  Status status = 1;
+  Engram engram = 2;
+}
+
+message UpdateEngramRequest {
+  string id = 1;
+  string content = 2;
+  string source = 3;
+  double confidence = 4;
+  google.protobuf.Struct metadata = 5;
+}
+
+message UpdateEngramResponse {
+  Status status = 1;
+  Engram engram = 2;
+}
+
+message DeleteEngramRequest {
+  string id = 1;
+}
+
+message DeleteEngramResponse {
+  Status status = 1;
+  bool deleted = 2;
+}
+
+message ListEngramsRequest {
+  uint32 page_size = 1;
+  string page_token = 2;
+}
+
+message ListEngramsResponse {
+  Status status = 1;
+  repeated Engram engrams = 2;
+  string next_page_token = 3;
+}
+
+// Connection request/response messages
+
+message CreateConnectionRequest {
+  string source_id = 1;
+  string target_id = 2;
+  string relationship_type = 3;
+  double weight = 4;
+  google.protobuf.Struct metadata = 5;
+}
+
+message CreateConnectionResponse {
+  Status status = 1;
+  Connection connection = 2;
+}
+
+message GetConnectionRequest {
+  string id = 1;
+}
+
+message GetConnectionResponse {
+  Status status = 1;
+  Connection connection = 2;
+}
+
+message UpdateConnectionRequest {
+  string id = 1;
+  string relationship_type = 2;
+  double weight = 3;
+  google.protobuf.Struct metadata = 4;
+}
+
+message UpdateConnectionResponse {
+  Status status = 1;
+  Connection connection = 2;
+}
+
+message DeleteConnectionRequest {
+  string id = 1;
+}
+
+message DeleteConnectionResponse {
+  Status status = 1;
+  bool deleted = 2;
+}
+
+message ListConnectionsRequest {
+  uint32 page_size = 1;
+  string page_token = 2;
+  string source_id = 3;
+  string target_id = 4;
+  string relationship_type = 5;
+}
+
+message ListConnectionsResponse {
+  Status status = 1;
+  repeated Connection connections = 2;
+  string next_page_token = 3;
+}
+
+// Collection request/response messages
+
+message CreateCollectionRequest {
+  string name = 1;
+  string description = 2;
+  repeated string engram_ids = 3;
+  google.protobuf.Struct metadata = 4;
+}
+
+message CreateCollectionResponse {
+  Status status = 1;
+  Collection collection = 2;
+}
+
+message GetCollectionRequest {
+  string id = 1;
+}
+
+message GetCollectionResponse {
+  Status status = 1;
+  Collection collection = 2;
+}
+
+message UpdateCollectionRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string engram_ids = 4;
+  google.protobuf.Struct metadata = 5;
+}
+
+message UpdateCollectionResponse {
+  Status status = 1;
+  Collection collection = 2;
+}
+
+message DeleteCollectionRequest {
+  string id = 1;
+}
+
+message DeleteCollectionResponse {
+  Status status = 1;
+  bool deleted = 2;
+}
+
+message ListCollectionsRequest {
+  uint32 page_size = 1;
+  string page_token = 2;
+}
+
+message ListCollectionsResponse {
+  Status status = 1;
+  repeated Collection collections = 2;
+  string next_page_token = 3;
+}
+
+// Search request/response messages
+
+message SearchResult {
+  Engram engram = 1;
+  double score = 2;
+  map<string, double> component_scores = 3;
+}
+
+message SearchByTextRequest {
+  string query = 1;
+  uint32 limit = 2;
+  google.protobuf.Struct metadata_filters = 3;
+  string source = 4;
+  double min_confidence = 5;
+  string collection_id = 6;
+}
+
+message SearchByVectorRequest {
+  oneof query {
+    string text = 1;
+    Embedding embedding = 2;
+    string similar_to_id = 3;
+  }
+  uint32 limit = 4;
+  double min_score = 5;
+  bool exclude_self = 6;
+  google.protobuf.Struct metadata_filters = 7;
+  string source = 8;
+  double min_confidence = 9;
+  string collection_id = 10;
+}
+
+message SearchHybridRequest {
+  string text = 1;
+  oneof vector_query {
+    string vector_text = 2;
+    Embedding embedding = 3;
+    string similar_to_id = 4;
+  }
+  uint32 limit = 5;
+  google.protobuf.Struct metadata_filters = 6;
+  string source = 7;
+  double min_confidence = 8;
+  CombinationMethod combination_method = 9;
+  map<string, float> weights = 10;
+  string collection_id = 11;
+}
+
+enum CombinationMethod {
+  SUM = 0;
+  MAX = 1;
+  WEIGHTED = 2;
+}
+
+message SearchResponse {
+  Status status = 1;
+  repeated SearchResult results = 2;
+}
+
+// Connection search 
+
+message FindConnectionsRequest {
+  string engram_id = 1;
+  Direction direction = 2;
+  repeated string relationship_types = 3;
+  uint32 max_depth = 4;
+  uint32 limit = 5;
+}
+
+enum Direction {
+  OUTGOING = 0;
+  INCOMING = 1;
+  BOTH = 2;
+}
+
+message ConnectionPath {
+  repeated Connection connections = 1;
+  double total_weight = 2;
+}
+
+message FindConnectionsResponse {
+  Status status = 1;
+  repeated ConnectionPath paths = 2;
+}
+
+// Embedding operations
+
+message GenerateEmbeddingRequest {
+  string text = 1;
+  EmbeddingModel model = 2;
+  bool normalize = 3;
+  bool use_instruction_prefix = 4;
+}
+
+enum EmbeddingModel {
+  E5_MULTILINGUAL_LARGE_INSTRUCT = 0;
+  GTE_MODERN_BERT_BASE = 1;
+  JINA_EMBEDDINGS_V3 = 2;
+  CUSTOM = 3;
+}
+
+message GenerateEmbeddingResponse {
+  Status status = 1;
+  Embedding embedding = 2;
+}

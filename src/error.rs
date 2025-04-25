@@ -32,6 +32,24 @@ pub enum EngramError {
     
     #[error("Transaction error: {0}")]
     TransactionError(String),
+    
+    #[error("Invalid operation: {0}")]
+    InvalidOperation(String),
+    
+    #[error("Not implemented: {0}")]
+    NotImplemented(String),
+    
+    #[error("Computation error: {0}")]
+    ComputationError(String),
+    
+    #[error("Invalid state: {0}")]
+    InvalidState(String),
+    
+    #[error("Concurrency error: {0}")]
+    ConcurrencyError(String),
+    
+    #[error("Generic error: {0}")]
+    Generic(String),
 }
 
 pub type Result<T> = std::result::Result<T, EngramError>;

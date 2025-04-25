@@ -331,6 +331,188 @@ impl MetadataIndex {
     }
 }
 
+/// Text search index for basic keyword search
+pub struct TextIndex {
+    /// Maps normalized keywords to engram IDs
+    keyword_index: HashMap<String, HashSet<EngramId>>,
+    
+    /// Maps stemmed words to engram IDs (for more flexible matching)
+    stem_index: HashMap<String, HashSet<EngramId>>,
+    
+    /// Maps engram IDs to the set of keywords it contains
+    engram_keywords: HashMap<EngramId, HashSet<String>>,
+}
+
+impl TextIndex {
+    /// Create a new, empty text index
+    pub fn new() -> Self {
+        Self {
+            keyword_index: HashMap::new(),
+            stem_index: HashMap::new(),
+            engram_keywords: HashMap::new(),
+        }
+    }
+    
+    /// Add an engram to the index
+    pub fn add_engram(&mut self, engram: &Engram) -> Result<()> {
+        let keywords = Self::extract_keywords(&engram.content);
+        self.engram_keywords.insert(engram.id.clone(), keywords.clone());
+        
+        // Index each keyword
+        for keyword in &keywords {
+            self.keyword_index
+                .entry(keyword.clone())
+                .or_insert_with(HashSet::new)
+                .insert(engram.id.clone());
+            
+            // Also index the stemmed version
+            let stemmed = Self::stem_word(keyword);
+            self.stem_index
+                .entry(stemmed)
+                .or_insert_with(HashSet::new)
+                .insert(engram.id.clone());
+        }
+        
+        Ok(())
+    }
+    
+    /// Remove an engram from the index
+    pub fn remove_engram(&mut self, engram: &Engram) -> Result<()> {
+        if let Some(keywords) = self.engram_keywords.remove(&engram.id) {
+            // Remove from keyword index
+            for keyword in &keywords {
+                if let Some(engrams) = self.keyword_index.get_mut(keyword) {
+                    engrams.remove(&engram.id);
+                    if engrams.is_empty() {
+                        self.keyword_index.remove(keyword);
+                    }
+                }
+                
+                // Remove from stem index
+                let stemmed = Self::stem_word(keyword);
+                if let Some(engrams) = self.stem_index.get_mut(&stemmed) {
+                    engrams.remove(&engram.id);
+                    if engrams.is_empty() {
+                        self.stem_index.remove(&stemmed);
+                    }
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Extract keywords from text content
+    fn extract_keywords(text: &str) -> HashSet<String> {
+        let mut keywords = HashSet::new();
+        
+        // Simple tokenization by splitting on whitespace and punctuation
+        for word in text
+            .split(|c: char| c.is_whitespace() || c.is_ascii_punctuation())
+            .filter(|s| !s.is_empty())
+        {
+            // Convert to lowercase for case-insensitive matching
+            let normalized = word.to_lowercase();
+            if normalized.len() >= 3 {  // Only index words of at least 3 characters
+                keywords.insert(normalized);
+            }
+        }
+        
+        keywords
+    }
+    
+    /// Very basic stemming function
+    /// In a real implementation, you'd want to use a proper stemming algorithm
+    fn stem_word(word: &str) -> String {
+        let word = word.to_lowercase();
+        
+        // Very simplified stemming - just handles a few common English suffixes
+        if word.ends_with('s') && word.len() > 3 {
+            return word[..word.len() - 1].to_string();
+        } else if word.ends_with("ing") && word.len() > 5 {
+            return word[..word.len() - 3].to_string();
+        } else if word.ends_with("ed") && word.len() > 4 {
+            return word[..word.len() - 2].to_string();
+        }
+        
+        word
+    }
+    
+    /// Find engrams containing a specific keyword (exact match)
+    pub fn find_by_keyword(&self, keyword: &str) -> HashSet<EngramId> {
+        let normalized = keyword.to_lowercase();
+        self.keyword_index
+            .get(&normalized)
+            .cloned()
+            .unwrap_or_else(HashSet::new)
+    }
+    
+    /// Find engrams containing a stemmed version of the keyword (more flexible matching)
+    pub fn find_by_stem(&self, keyword: &str) -> HashSet<EngramId> {
+        let normalized = keyword.to_lowercase();
+        let stemmed = Self::stem_word(&normalized);
+        
+        self.stem_index
+            .get(&stemmed)
+            .cloned()
+            .unwrap_or_else(HashSet::new)
+    }
+    
+    /// Search for engrams containing any of the keywords
+    pub fn search(&self, query: &str) -> HashSet<EngramId> {
+        let keywords = Self::extract_keywords(query);
+        let mut results = HashSet::new();
+        
+        for keyword in keywords {
+            // Get results for this keyword
+            let keyword_results = self.find_by_keyword(&keyword);
+            let stem_results = self.find_by_stem(&keyword);
+            
+            // Combine both sets
+            let mut combined = keyword_results;
+            combined.extend(stem_results);
+            
+            // Add to overall results
+            results.extend(combined);
+        }
+        
+        results
+    }
+    
+    /// Search for engrams containing all of the keywords
+    pub fn search_all(&self, query: &str) -> HashSet<EngramId> {
+        let keywords = Self::extract_keywords(query);
+        
+        // Start with the entire universe of engrams
+        let mut results: Option<HashSet<EngramId>> = None;
+        
+        for keyword in keywords {
+            // Get results for this keyword (exact or stem matches)
+            let keyword_results = self.find_by_keyword(&keyword);
+            let stem_results = self.find_by_stem(&keyword);
+            
+            // Combine both sets
+            let mut combined = keyword_results;
+            combined.extend(stem_results);
+            
+            // Perform intersection with previous results
+            results = match results {
+                Some(prev) => Some(prev.intersection(&combined).cloned().collect()),
+                None => Some(combined),
+            };
+            
+            // Short-circuit if we have no results
+            if let Some(ref res) = results {
+                if res.is_empty() {
+                    break;
+                }
+            }
+        }
+        
+        results.unwrap_or_else(HashSet::new)
+    }
+}
+
 /// Combined search index for efficient querying
 pub struct SearchIndex {
     /// Relationship index for traversal
@@ -338,6 +520,9 @@ pub struct SearchIndex {
     
     /// Metadata index for filtering
     pub metadata_index: MetadataIndex,
+
+    /// Text index for keyword search
+    pub text_index: TextIndex,
     
     /// Source index for filtering by source
     source_index: HashMap<String, HashSet<EngramId>>,
@@ -352,6 +537,7 @@ impl SearchIndex {
         Self {
             relationship_index: RelationshipIndex::new(),
             metadata_index: MetadataIndex::new(),
+            text_index: TextIndex::new(),
             source_index: HashMap::new(),
             confidence_index: HashMap::new(),
         }
@@ -361,6 +547,9 @@ impl SearchIndex {
     pub fn add_engram(&mut self, engram: &Engram) -> Result<()> {
         // Index by metadata
         self.metadata_index.add_engram(engram)?;
+        
+        // Index by text content
+        self.text_index.add_engram(engram)?;
         
         // Index by source
         self.source_index
@@ -388,6 +577,9 @@ impl SearchIndex {
         // Remove from metadata index
         self.metadata_index.remove_engram(engram)?;
         
+        // Remove from text index
+        self.text_index.remove_engram(engram)?;
+        
         // Remove from source index
         if let Some(engrams) = self.source_index.get_mut(&engram.source) {
             engrams.remove(&engram.id);
@@ -396,15 +588,29 @@ impl SearchIndex {
             }
         }
         
-        // Remove from confidence index
-        let confidence_bucket = (engram.confidence * 10.0).floor() as u8;
-        if let Some(engrams) = self.confidence_index.get_mut(&confidence_bucket) {
-            engrams.remove(&engram.id);
-            if engrams.is_empty() {
-                self.confidence_index.remove(&confidence_bucket);
-            }
+        Ok(())
+    }
+    
+    /// Remove an engram from the index by ID
+    pub fn remove_engram_by_id(&mut self, engram_id: &str) -> Result<()> {
+        // Since we only have the ID, we may not be able to fully remove from all indexes
+        // This is a best-effort method that removes what it can
+        
+        // Remove from source index
+        for (_, engrams) in self.source_index.iter_mut() {
+            engrams.remove(engram_id);
         }
         
+        // Clean up empty sets in source index
+        self.source_index.retain(|_, engrams| !engrams.is_empty());
+        
+        // Remove from metadata and text indexes
+        // We can't remove properly without the full engram, so this is a limitation
+        
+        // Note: In a real implementation, we would need to fetch the engram first
+        // and then use remove_engram, but for now this is a partial implementation
+        
+        // Return success
         Ok(())
     }
     
@@ -439,12 +645,28 @@ impl SearchIndex {
     /// Combine multiple search criteria with AND logic
     pub fn search_combined(
         &self,
+        text_query: Option<&str>,
         source: Option<&str>,
         min_confidence: Option<f64>,
         metadata_key: Option<&str>,
         metadata_value: Option<&str>,
+        exact_match: bool,
     ) -> HashSet<EngramId> {
         let mut final_result: Option<HashSet<EngramId>> = None;
+        
+        // Apply text search if provided
+        if let Some(query) = text_query {
+            let text_results = if exact_match {
+                self.text_index.search_all(query)
+            } else {
+                self.text_index.search(query)
+            };
+            
+            final_result = Some(match final_result {
+                Some(existing) => existing.intersection(&text_results).cloned().collect(),
+                None => text_results,
+            });
+        }
         
         // Apply source filter if provided
         if let Some(source_str) = source {

@@ -172,10 +172,12 @@ mod tests {
         
         // Test combined searching
         let combined_results = index.search_combined(
-            Some("research"),
-            Some(0.8),
-            Some("topic"),
-            Some("climate"),
+            Some("climate"), // text to search for in content
+            Some("research"), // source filter
+            Some(0.8),      // min confidence
+            Some("topic"),  // metadata key
+            Some("climate"), // metadata value
+            false,          // exact_match set to false
         );
         assert_eq!(combined_results.len(), 1);
         assert!(combined_results.contains(&"e1".to_string()));
