@@ -9,6 +9,7 @@ EngramAI is a knowledge memory graph system for AI agents, designed to store and
 - Never do mocks, never hardcode stuff just to get everything works.
 - Always use tests and benchmarks to learn what needs to be improved.
 - Always fix things.
+- Always commit and push to git, decide on the appropriate semver number and tag the release for minor versions
 
 ## Build/Run Commands
 - Run prototype: `python prototype.py`

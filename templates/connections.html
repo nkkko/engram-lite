@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EngramAI Lite - Connections</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+        }
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background-color: #2c3e50;
+            color: #fff;
+            padding: 1rem 0;
+            margin-bottom: 2rem;
+        }
+        header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        .navbar {
+            display: flex;
+        }
+        .navbar a {
+            color: #fff;
+            text-decoration: none;
+            margin-left: 1.5rem;
+            font-weight: 500;
+        }
+        .navbar a:hover {
+            text-decoration: underline;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        tr:hover {
+            background-color: #f1f5f9;
+        }
+        .relationship-type {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+            color: white;
+        }
+        .influences {
+            background-color: #3498db;
+        }
+        .implements {
+            background-color: #2ecc71;
+        }
+        .verified_by {
+            background-color: #9b59b6;
+        }
+        .documented_by {
+            background-color: #f39c12;
+        }
+        .contains {
+            background-color: #1abc9c;
+        }
+        .followed_by {
+            background-color: #34495e;
+        }
+        .relates_to {
+            background-color: #e67e22;
+        }
+        .resulted_in {
+            background-color: #e74c3c;
+        }
+        .prompted {
+            background-color: #16a085;
+        }
+        footer {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            text-align: center;
+            padding: 1rem 0;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Connections</h1>
+            <div class="navbar">
+                <a href="/">Home</a>
+                <a href="/engrams">Engrams</a>
+                <a href="/connections">Connections</a>
+                <a href="/collections">Collections</a>
+                <a href="/agents">Agents</a>
+                <a href="/api-docs">API Docs</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h2>Relationship Network</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Source</th>
+                        <th>Relationship</th>
+                        <th>Target</th>
+                        <th>Strength</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for connection in connections %}
+                    <tr>
+                        <td>{{ connection.source_content }}</td>
+                        <td>
+                            {% set relationship_class = connection.relationship_type | lower | replace(from=" ", to="_") %}
+                            <span class="relationship-type {{ relationship_class }}">
+                                {{ connection.relationship_type }}
+                            </span>
+                        </td>
+                        <td>{{ connection.target_content }}</td>
+                        <td>{{ connection.weight }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>Connection Types</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="relationship-type influences">influences</span></td>
+                        <td>Shows how one engram affects or shapes another</td>
+                        <td>{{ type_counts.influences | default(value=0) }}</td>
+                    </tr>
+                    <tr>
+                        <td><span class="relationship-type implements">implements</span></td>
+                        <td>Indicates an implementation of a design decision</td>
+                        <td>{{ type_counts.implements | default(value=0) }}</td>
+                    </tr>
+                    <tr>
+                        <td><span class="relationship-type verified_by">verified_by</span></td>
+                        <td>Shows verification through testing</td>
+                        <td>{{ type_counts.verified_by | default(value=0) }}</td>
+                    </tr>
+                    <tr>
+                        <td><span class="relationship-type documented_by">documented_by</span></td>
+                        <td>Indicates documentation of an implementation</td>
+                        <td>{{ type_counts.documented_by | default(value=0) }}</td>
+                    </tr>
+                    <tr>
+                        <td><span class="relationship-type contains">contains</span></td>
+                        <td>Shows containment relationships</td>
+                        <td>{{ type_counts.contains | default(value=0) }}</td>
+                    </tr>
+                    <tr>
+                        <td><span class="relationship-type followed_by">followed_by</span></td>
+                        <td>Indicates sequential relationships</td>
+                        <td>{{ type_counts.followed_by | default(value=0) }}</td>
+                    </tr>
+                    <tr>
+                        <td><span class="relationship-type relates_to">relates_to</span></td>
+                        <td>Shows general relatedness between engrams</td>
+                        <td>{{ type_counts.relates_to | default(value=0) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>EngramAI Lite v{{ version }} - A Knowledge Memory Graph System for AI Agents</p>
+        </div>
+    </footer>
+</body>
+</html>

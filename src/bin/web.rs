@@ -4,7 +4,7 @@ use actix_web::{web, App, HttpResponse, HttpServer, Responder, middleware};
 use engram_lite::error::Result as EngramResult;
 use engram_lite::graph::MemoryGraph;
 use engram_lite::storage::Storage;
-use engram_lite::schema::{Engram, Connection, Collection, Agent, Context};
+use engram_lite::schema::{Engram, Connection, Collection, Agent};
 use engram_lite::index::SearchIndex;
 use serde::{Serialize, Deserialize};
 use std::collections::HashSet;
@@ -114,6 +114,261 @@ async fn index(data: web::Data<AppState>) -> impl Responder {
         .body(rendered)
 }
 
+// Engrams page
+async fn engrams_page(data: web::Data<AppState>) -> impl Responder {
+    let mut context = TeraContext::new();
+    
+    // Get engrams
+    let storage = &data.storage;
+    let mut engrams = Vec::new();
+    
+    if let Ok(ids) = storage.list_engrams() {
+        for id in ids {
+            if let Ok(Some(engram)) = storage.get_engram(&id) {
+                engrams.push(engram);
+            }
+        }
+    }
+    
+    context.insert("engrams", &engrams);
+    context.insert("version", "0.1.0"); // Add version
+    
+    let rendered = data.templates.render("engrams.html", &context).unwrap_or_else(|e| {
+        format!("Template error: {}", e)
+    });
+    
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .body(rendered)
+}
+
+// Connections page
+async fn connections_page(data: web::Data<AppState>) -> impl Responder {
+    let mut context = TeraContext::new();
+    
+    // Get connections
+    let storage = &data.storage;
+    let mut connections_with_content = Vec::new();
+    let mut type_counts = std::collections::HashMap::new();
+    
+    if let Ok(ids) = storage.list_connections() {
+        for id in ids {
+            if let Ok(Some(connection)) = storage.get_connection(&id) {
+                // Count connection types
+                let count = type_counts.entry(connection.relationship_type.clone()).or_insert(0);
+                *count += 1;
+                
+                // Get source and target engram content
+                let source_content = match storage.get_engram(&connection.source_id) {
+                    Ok(Some(engram)) => engram.content.clone(),
+                    _ => format!("Unknown (ID: {})", connection.source_id)
+                };
+                
+                let target_content = match storage.get_engram(&connection.target_id) {
+                    Ok(Some(engram)) => engram.content.clone(),
+                    _ => format!("Unknown (ID: {})", connection.target_id)
+                };
+                
+                // Create a connection with content for the template
+                let conn_with_content = serde_json::json!({
+                    "id": connection.id,
+                    "source_id": connection.source_id,
+                    "target_id": connection.target_id,
+                    "source_content": source_content,
+                    "target_content": target_content,
+                    "relationship_type": connection.relationship_type,
+                    "weight": connection.weight,
+                    "metadata": connection.metadata
+                });
+                
+                connections_with_content.push(conn_with_content);
+            }
+        }
+    }
+    
+    context.insert("connections", &connections_with_content);
+    context.insert("type_counts", &type_counts);
+    context.insert("version", "0.1.0"); // Add version
+    
+    let rendered = data.templates.render("connections.html", &context).unwrap_or_else(|e| {
+        format!("Template error: {}", e)
+    });
+    
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .body(rendered)
+}
+
+// Collections page
+async fn collections_page(data: web::Data<AppState>) -> impl Responder {
+    let mut context = TeraContext::new();
+    
+    // Get collections
+    let storage = &data.storage;
+    let mut collections_with_counts = Vec::new();
+    
+    if let Ok(ids) = storage.list_collections() {
+        for id in ids {
+            if let Ok(Some(collection)) = storage.get_collection(&id) {
+                // Use the collection's engram_ids size as count
+                let engram_count = collection.engram_ids.len();
+                
+                // Create collection with count for the template
+                let collection_with_count = serde_json::json!({
+                    "id": collection.id,
+                    "name": collection.name,
+                    "description": collection.description,
+                    "metadata": collection.metadata,
+                    "engram_count": engram_count
+                });
+                
+                collections_with_counts.push(collection_with_count);
+            }
+        }
+    }
+    
+    context.insert("collections", &collections_with_counts);
+    context.insert("version", "0.1.0"); // Add version
+    
+    let rendered = data.templates.render("collections.html", &context).unwrap_or_else(|e| {
+        format!("Template error: {}", e)
+    });
+    
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .body(rendered)
+}
+
+// Collection detail page 
+async fn collection_detail_page(path: web::Path<String>, data: web::Data<AppState>) -> impl Responder {
+    let collection_id = path.into_inner();
+    let mut context = TeraContext::new();
+    
+    let storage = &data.storage;
+    
+    // Get the collection
+    match storage.get_collection(&collection_id) {
+        Ok(Some(collection)) => {
+            // Get engrams in this collection
+            let mut engrams = Vec::new();
+            for engram_id in &collection.engram_ids {
+                if let Ok(Some(engram)) = storage.get_engram(engram_id) {
+                    engrams.push(engram);
+                }
+            }
+            
+            context.insert("collection", &collection);
+            context.insert("engrams", &engrams);
+            context.insert("version", "0.1.0");
+            
+            // Return collection detail page
+            let rendered = data.templates.render("collection-detail.html", &context).unwrap_or_else(|_e| {
+                // If the template doesn't exist, return a simple formatted view
+                format!(
+                    "<html><head><title>Collection: {}</title></head><body>
+                     <h1>Collection: {}</h1>
+                     <p>{}</p>
+                     <h2>Engrams in this collection:</h2>
+                     <ul>
+                     {}
+                     </ul>
+                     <p><a href='/collections'>Back to Collections</a></p>
+                     </body></html>",
+                    collection.name,
+                    collection.name,
+                    collection.description,
+                    engrams.iter()
+                        .map(|e| format!("<li>{}</li>", e.content))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                )
+            });
+            
+            HttpResponse::Ok()
+                .content_type("text/html")
+                .body(rendered)
+        },
+        Ok(None) => {
+            HttpResponse::NotFound().body(format!("Collection with ID {} not found", collection_id))
+        },
+        Err(e) => {
+            HttpResponse::InternalServerError().body(format!("Error fetching collection: {}", e))
+        }
+    }
+}
+
+// Agents page
+async fn agents_page(data: web::Data<AppState>) -> impl Responder {
+    let mut context = TeraContext::new();
+    
+    // Get agents
+    let storage = &data.storage;
+    let mut agents = Vec::new();
+    let mut collection_names = std::collections::HashMap::new();
+    
+    // First get all collection names for reference
+    if let Ok(ids) = storage.list_collections() {
+        for id in ids {
+            if let Ok(Some(collection)) = storage.get_collection(&id) {
+                collection_names.insert(collection.id.clone(), collection.name.clone());
+            }
+        }
+    }
+    
+    // Now get agents
+    if let Ok(ids) = storage.list_agents() {
+        for id in ids {
+            if let Ok(Some(agent)) = storage.get_agent(&id) {
+                // Use agent's accessible_collections directly
+                let accessible_collections: Vec<String> = agent.accessible_collections
+                    .iter()
+                    .cloned()
+                    .collect();
+                
+                // Create agent with collections for the template
+                let agent_with_collections = serde_json::json!({
+                    "id": agent.id,
+                    "name": agent.name,
+                    "description": agent.description,
+                    "capabilities": agent.capabilities,
+                    "metadata": agent.metadata,
+                    "accessible_collections": accessible_collections
+                });
+                
+                agents.push(agent_with_collections);
+            }
+        }
+    }
+    
+    context.insert("agents", &agents);
+    context.insert("collection_names", &collection_names);
+    context.insert("version", "0.1.0"); // Add version
+    
+    let rendered = data.templates.render("agents.html", &context).unwrap_or_else(|e| {
+        format!("Template error: {}", e)
+    });
+    
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .body(rendered)
+}
+
+// API documentation page
+async fn api_docs_page(data: web::Data<AppState>) -> impl Responder {
+    let mut context = TeraContext::new();
+    
+    // Add version info
+    context.insert("version", "0.1.0");
+    
+    let rendered = data.templates.render("api-docs.html", &context).unwrap_or_else(|e| {
+        format!("Template error: {}", e)
+    });
+    
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .body(rendered)
+}
+
 // API Routes - Engrams
 async fn api_get_engrams(data: web::Data<AppState>) -> impl Responder {
     let storage = &data.storage;
@@ -201,7 +456,8 @@ async fn api_create_engram(req: web::Json<CreateEngramRequest>, data: web::Data<
 async fn api_delete_engram(path: web::Path<String>, data: web::Data<AppState>) -> impl Responder {
     let engram_id = path.into_inner();
     let storage = &data.storage;
-    let memory_graph = &data.memory_graph;
+    // Using _memory_graph prefix to indicate intentionally unused variable
+    let _memory_graph = &data.memory_graph;
     let search_index = &data.search_index;
     
     // First get the engram so we can remove it from indexes
@@ -593,7 +849,7 @@ pub fn start_server(db_path: &str, port: u16) -> EngramResult<()> {
     
     // Set up Tera template engine
     println!("Initializing template engine...");
-    let mut tera = match Tera::new("templates/**/*.html") {
+    let tera = match Tera::new("templates/**/*.html") {
         Ok(t) => t,
         Err(e) => {
             eprintln!("Template error: {}", e);
@@ -734,6 +990,12 @@ pub fn start_server(db_path: &str, port: u16) -> EngramResult<()> {
                 .app_data(app_state.clone())
                 // Web UI routes
                 .service(web::resource("/").to(index))
+                .service(web::resource("/engrams").to(engrams_page))
+                .service(web::resource("/connections").to(connections_page))
+                .service(web::resource("/collections").to(collections_page))
+                .service(web::resource("/collections/{id}").to(collection_detail_page))
+                .service(web::resource("/agents").to(agents_page))
+                .service(web::resource("/api-docs").to(api_docs_page))
                 .service(fs::Files::new("/static", "static").show_files_listing())
                 // API routes
                 .service(

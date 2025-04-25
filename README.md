@@ -10,6 +10,8 @@ EngramAI Lite is a memory graph storage system designed for AI agents. It provid
 - **Persistent Storage**: RocksDB-based persistence with ACID transaction support
 - **Efficient Indexes**: Fast traversal and search capabilities for relationship queries
 - **CLI Tool**: Command-line interface for interacting with the memory graph
+- **Web UI**: Browser-based interface for exploring the memory graph
+- **Demo Data**: Realistic multi-agent collaboration scenario with sample data
 - **Import/Export**: Backup and restore your memory graph with JSON-based format
 
 ## Core Components
@@ -41,6 +43,12 @@ cargo build --release
 
 # With custom database path
 ./target/release/engramlt --db-path /path/to/database
+
+# Populate with demo data
+./target/release/engramlt demo --db-path /path/to/database
+
+# Start web UI
+./target/release/engramlt web --db-path /path/to/database
 ```
 
 ### Example Commands
@@ -97,6 +105,10 @@ Specialized indexes for efficient queries and traversals:
 
 Command-line interface for interacting with the memory graph.
 
+### 6. Web UI & Demo Data
+
+Browser-based interface for exploring the memory graph with pre-populated demo data showcasing a multi-agent collaboration scenario.
+
 ## Documentation
 
 For detailed documentation, see:
@@ -104,6 +116,7 @@ For detailed documentation, see:
 - [Installation Guide](docs/getting-started/installation.md)
 - [Quickstart Guide](docs/getting-started/quickstart.md)
 - [CLI Reference](docs/usage/cli.md)
+- [Web UI Guide](docs/usage/tui.md)
 - [Data Model](docs/design/data-model.md)
 - [Storage Design](docs/design/storage.md)
 - [Graph Engine](docs/design/graph-engine.md)

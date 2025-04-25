@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EngramAI Lite - API Documentation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+        }
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background-color: #2c3e50;
+            color: #fff;
+            padding: 1rem 0;
+            margin-bottom: 2rem;
+        }
+        header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        .navbar {
+            display: flex;
+        }
+        .navbar a {
+            color: #fff;
+            text-decoration: none;
+            margin-left: 1.5rem;
+            font-weight: 500;
+        }
+        .navbar a:hover {
+            text-decoration: underline;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+        .card h3 {
+            margin-top: 1.5rem;
+            color: #34495e;
+        }
+        .api-endpoint {
+            background-color: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .method {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 5px;
+            font-family: monospace;
+        }
+        .method.get {
+            background-color: #2ecc71;
+            color: white;
+        }
+        .method.post {
+            background-color: #3498db;
+            color: white;
+        }
+        .method.put {
+            background-color: #f39c12;
+            color: white;
+        }
+        .method.delete {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .endpoint-path {
+            font-family: monospace;
+            font-size: 1.1rem;
+            margin-left: 5px;
+        }
+        .endpoint-description {
+            margin-top: 8px;
+            margin-bottom: 0;
+        }
+        .section-header {
+            margin-top: 2rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #ddd;
+            color: #2c3e50;
+        }
+        .example-code {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            overflow-x: auto;
+            white-space: pre;
+            margin: 10px 0;
+        }
+        .parameter-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        .parameter-table th, .parameter-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .parameter-table th {
+            background-color: #f5f7fa;
+            font-weight: 600;
+        }
+        .parameter-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        .parameter-name {
+            font-weight: 500;
+            font-family: monospace;
+        }
+        .parameter-type {
+            color: #7f8c8d;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        .parameter-required {
+            display: inline-block;
+            background-color: #e74c3c;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+        .parameter-optional {
+            display: inline-block;
+            background-color: #95a5a6;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+        footer {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            text-align: center;
+            padding: 1rem 0;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>API Documentation</h1>
+            <div class="navbar">
+                <a href="/">Home</a>
+                <a href="/engrams">Engrams</a>
+                <a href="/connections">Connections</a>
+                <a href="/collections">Collections</a>
+                <a href="/agents">Agents</a>
+                <a href="/api-docs">API Docs</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h2>EngramAI Lite REST API</h2>
+            <p>The EngramAI Lite API allows you to interact with the knowledge graph programmatically. All endpoints return JSON responses.</p>
+            
+            <h3 class="section-header">Base URL</h3>
+            <p>All API endpoints are relative to: <code>http://localhost:3000/api</code></p>
+            
+            <h3 class="section-header">Authentication</h3>
+            <p>Currently, the API does not require authentication.</p>
+            
+            <h3 class="section-header">Engram Endpoints</h3>
+            
+            <div class="api-endpoint">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/engrams</span>
+                <p class="endpoint-description">Returns a list of all engrams.</p>
+                
+                <h4>Example Response:</h4>
+                <div class="example-code">{
+  "engrams": [
+    {
+      "id": "01234567-89ab-cdef-0123-456789abcdef",
+      "content": "The application should provide weather forecasts for user-specified locations.",
+      "source": "project_manager",
+      "confidence": 0.95,
+      "timestamp": "2023-05-10T12:00:00Z",
+      "metadata": {
+        "type": "requirement",
+        "priority": "high"
+      }
+    },
+    ...
+  ]
+}</div>
+            </div>
+            
+            <div class="api-endpoint">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/engrams/{id}</span>
+                <p class="endpoint-description">Returns a specific engram by ID.</p>
+                
+                <h4>Parameters:</h4>
+                <table class="parameter-table">
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><span class="parameter-name">id</span> <span class="parameter-required">Required</span></td>
+                        <td><span class="parameter-type">string</span></td>
+                        <td>The unique identifier of the engram.</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="api-endpoint">
+                <span class="method post">POST</span>
+                <span class="endpoint-path">/engrams</span>
+                <p class="endpoint-description">Creates a new engram.</p>
+                
+                <h4>Request Body:</h4>
+                <table class="parameter-table">
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><span class="parameter-name">content</span> <span class="parameter-required">Required</span></td>
+                        <td><span class="parameter-type">string</span></td>
+                        <td>The knowledge content of the engram.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="parameter-name">source</span> <span class="parameter-required">Required</span></td>
+                        <td><span class="parameter-type">string</span></td>
+                        <td>The source of the knowledge.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="parameter-name">confidence</span> <span class="parameter-optional">Optional</span></td>
+                        <td><span class="parameter-type">number</span></td>
+                        <td>Confidence score between 0.0 and 1.0. Defaults to 1.0.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="parameter-name">metadata</span> <span class="parameter-optional">Optional</span></td>
+                        <td><span class="parameter-type">object</span></td>
+                        <td>Additional structured metadata for the engram.</td>
+                    </tr>
+                </table>
+                
+                <h4>Example Request:</h4>
+                <div class="example-code">{
+  "content": "React components should follow the single responsibility principle.",
+  "source": "developer",
+  "confidence": 0.9,
+  "metadata": {
+    "type": "design_principle",
+    "area": "frontend"
+  }
+}</div>
+            </div>
+            
+            <div class="api-endpoint">
+                <span class="method delete">DELETE</span>
+                <span class="endpoint-path">/engrams/{id}</span>
+                <p class="endpoint-description">Deletes an engram by ID.</p>
+                
+                <h4>Parameters:</h4>
+                <table class="parameter-table">
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><span class="parameter-name">id</span> <span class="parameter-required">Required</span></td>
+                        <td><span class="parameter-type">string</span></td>
+                        <td>The unique identifier of the engram to delete.</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <h3 class="section-header">Connection Endpoints</h3>
+            
+            <div class="api-endpoint">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/connections</span>
+                <p class="endpoint-description">Returns a list of all connections.</p>
+            </div>
+            
+            <div class="api-endpoint">
+                <span class="method post">POST</span>
+                <span class="endpoint-path">/connections</span>
+                <p class="endpoint-description">Creates a new connection between engrams.</p>
+                
+                <h4>Request Body:</h4>
+                <table class="parameter-table">
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><span class="parameter-name">source_id</span> <span class="parameter-required">Required</span></td>
+                        <td><span class="parameter-type">string</span></td>
+                        <td>ID of the source engram.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="parameter-name">target_id</span> <span class="parameter-required">Required</span></td>
+                        <td><span class="parameter-type">string</span></td>
+                        <td>ID of the target engram.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="parameter-name">relationship_type</span> <span class="parameter-required">Required</span></td>
+                        <td><span class="parameter-type">string</span></td>
+                        <td>Type of relationship (e.g., "causes", "supports", "contradicts").</td>
+                    </tr>
+                    <tr>
+                        <td><span class="parameter-name">weight</span> <span class="parameter-optional">Optional</span></td>
+                        <td><span class="parameter-type">number</span></td>
+                        <td>Connection strength between 0.0 and 1.0. Defaults to 1.0.</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <h3 class="section-header">Search Endpoints</h3>
+            
+            <div class="api-endpoint">
+                <span class="method post">POST</span>
+                <span class="endpoint-path">/search</span>
+                <p class="endpoint-description">Search for engrams using various criteria.</p>
+                
+                <h4>Request Body:</h4>
+                <table class="parameter-table">
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><span class="parameter-name">query</span> <span class="parameter-optional">Optional</span></td>
+                        <td><span class="parameter-type">string</span></td>
+                        <td>Text query for semantic search.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="parameter-name">source</span> <span class="parameter-optional">Optional</span></td>
+                        <td><span class="parameter-type">string</span></td>
+                        <td>Filter by source.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="parameter-name">min_confidence</span> <span class="parameter-optional">Optional</span></td>
+                        <td><span class="parameter-type">number</span></td>
+                        <td>Minimum confidence threshold.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="parameter-name">limit</span> <span class="parameter-optional">Optional</span></td>
+                        <td><span class="parameter-type">integer</span></td>
+                        <td>Maximum number of results to return. Default is 10.</td>
+                    </tr>
+                </table>
+                
+                <h4>Example Request:</h4>
+                <div class="example-code">{
+  "query": "weather API",
+  "source": "developer",
+  "min_confidence": 0.7,
+  "limit": 5
+}</div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>EngramAI Lite v{{ version }} - A Knowledge Memory Graph System for AI Agents</p>
+        </div>
+    </footer>
+</body>
+</html>

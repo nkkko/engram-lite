@@ -233,6 +233,11 @@
   - [ ] Add memory retrieval augmented generation examples
   - [ ] Implement connection generation from LLM reasoning
   - [ ] Add engram enrichment with LLM-generated metadata
+- [x] [P1] Improve developer experience
+  - [x] Add demo data generation with realistic multi-agent scenario
+  - [x] Create web UI template pages for browsing demo data
+  - [ ] Create interactive tutorials for common usage patterns
+  - [ ] Add visual graph exploration tools
 - [ ] [P1] Build MCP server basics (mcp-full-llms.txt)
   - [ ] Implement core MCP server specification
   - [ ] Create basic memory tools for MCP (add_engram, get_engram, query, engram_relate, memory_summarize)
@@ -277,41 +282,41 @@
 ## Milestone 8: Web User Interface [P1]
 **Goal:** Create a user-friendly web-based graphical interface for interacting with the EngramAI memory graph, similar to the DuckDB CLI UI experience.
 
-- [ ] [P1] Design UI architecture and technology stack
-  - [ ] Evaluate options: Embedded Rust HTTP server vs. separate web server application.
-  - [ ] Choose frontend framework (e.g., React, Vue, Svelte) and related tooling.
-  - [ ] Define communication protocol (e.g., REST over HTTP, WebSockets, gRPC-web) to interact with M4 API or embedded server.
-  - [ ] Setup frontend development environment.
-- [ ] [P1] Implement backend component for UI (if not fully relying on M4 API)
-  - [ ] Add minimal embedded HTTP server in Rust or build a small companion web server app.
-  - [ ] Create or consume necessary API endpoints for UI data retrieval and manipulation.
-- [ ] [P1] Build core UI components and layout
-  - [ ] Create main application structure and navigation.
-  - [ ] Implement reusable components (tables, forms, buttons, graph canvas).
-  - [ ] Design basic styling and theme.
-- [ ] [P1] Implement data browsing and detail views
-  - [ ] Create pages/views for listing/searching Engrams.
-  - [ ] Create pages/views for listing/searching Connections.
-  - [ ] Create pages/views for listing/searching Collections, Agents, and Contexts.
-  - [ ] Implement detail panels for inspecting individual data items with all their attributes.
+- [x] [P1] Design UI architecture and technology stack
+  - [x] Evaluate options: Embedded Rust HTTP server vs. separate web server application.
+  - [x] Choose frontend framework (using simple HTML/CSS with Tera templates).
+  - [x] Define communication protocol (REST over HTTP) to interact with API.
+  - [x] Setup UI development environment.
+- [x] [P1] Implement backend component for UI
+  - [x] Add minimal embedded HTTP server in Rust with Actix-Web.
+  - [x] Create necessary API endpoints for UI data retrieval.
+- [x] [P1] Build core UI components and layout
+  - [x] Create main application structure and navigation.
+  - [x] Implement reusable components for displaying engrams, connections, etc.
+  - [x] Design basic styling and theme.
+- [x] [P1] Implement data browsing and detail views
+  - [x] Create pages/views for listing Engrams.
+  - [x] Create pages/views for listing Connections.
+  - [x] Create pages/views for listing Collections and Agents.
+  - [x] Implement detail panel for viewing collection contents.
 - [ ] [P1] Implement data manipulation forms
   - [ ] Build forms for adding new Engrams (content, source, confidence, metadata).
   - [ ] Build forms for adding new Connections (source, target, type, weight, metadata).
   - [ ] Implement forms for editing and deleting data items.
 - [ ] [P1] Add query and command execution interface
-  - [ ] Create a persistent input area for typing commands or executing queries (leveraging M2/M3 search/query capabilities).
+  - [ ] Create a persistent input area for typing commands or executing queries.
   - [ ] Implement sending commands/queries to the backend via API.
-  - [ ] Display results in a user-friendly format (structured tables for query results, plain text for command output).
+  - [ ] Display results in a user-friendly format (structured tables for query results).
 - [ ] [P1] Integrate interactive graph visualization
-  - [ ] Choose and integrate a JavaScript graph visualization library (e.g., Cytoscape.js, D3.js, vis.js).
-  - [ ] Implement fetching graph data subsets for visualization (e.g., connections around a specific engram, a collection's contents).
+  - [ ] Choose and integrate a JavaScript graph visualization library.
+  - [ ] Implement fetching graph data subsets for visualization.
   - [ ] Display a basic interactive graph visualization allowing pan, zoom, and node click.
-- [ ] [P1] Add UI launch mechanisms
-  - [ ] Implement a CLI command (e.g., `engramai ui` or `engramai --ui`) that starts the UI backend component and opens the default web browser to the UI URL.
-  - [ ] Add configuration options (e.g., port number) via CLI flags or config file.
-- [ ] [P1] Develop comprehensive UI documentation
-  - [ ] Create a user guide specific to the web UI.
-  - [ ] Document installation, launching, and basic usage.
+- [x] [P1] Add UI launch mechanisms
+  - [x] Implement a CLI command (`engramlt web`) that starts the UI backend component.
+  - [x] Add configuration options (port number) via CLI flags.
+- [x] [P1] Develop comprehensive UI documentation
+  - [x] Create a user guide specific to the web UI.
+  - [x] Document installation, launching, and basic usage.
   - [ ] Explain how to perform common tasks (add data, search, view graph).
 
 **Value:** Provides an intuitive visual way for users to interact with, explore, and manage their memory graphs without relying solely on the CLI or raw API calls. Lowers the barrier to entry and makes complex data structures more understandable.

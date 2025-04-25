@@ -724,6 +724,7 @@ fn show_help() {
     println!("  cli             Start interactive CLI mode (default if no command provided)");
     println!("  tui             Start interactive Terminal UI mode");
     println!("  web             Start web server mode");
+    println!("  demo            Populate database with demo data for a multi-agent coding project");
     println!("  help            Show this help message");
     
     println!("\nOPTIONS:");
@@ -735,6 +736,7 @@ fn show_help() {
     println!("  engramlt cli --db-path /path/to/db");
     println!("  engramlt tui               # Start TUI mode with default settings");
     println!("  engramlt web --port 8080   # Start web server on port 8080");
+    println!("  engramlt demo --db-path /path/to/db   # Populate with demo data");
 }
 
 #[cfg(feature = "tui")]
@@ -815,6 +817,13 @@ fn main() -> Result<()> {
             println!("Starting Web server mode...");
             if let Err(e) = web::start_server(&db_path, port) {
                 eprintln!("Error: {}", e);
+            }
+        },
+        "demo" => {
+            // Populate database with demo data
+            println!("Populating database with demo data...");
+            if let Err(e) = engram_lite::demo::populate_demo_data(&db_path) {
+                eprintln!("Error populating demo data: {}", e);
             }
         },
         "help" => {

@@ -9,6 +9,7 @@ pub mod query;
 pub mod embedding;
 pub mod vector_search;
 pub mod dimension_reduction;
+pub mod demo;
 #[cfg(feature = "grpc")]
 pub mod grpc;
 #[cfg(feature = "python")]
@@ -32,6 +33,7 @@ pub use query::{EngramQuery, RelationshipQuery, QueryEngine, TraversalEngine, Qu
 pub use embedding::{Embedding, EmbeddingModel, EmbeddingService, EmbeddingCache, HnswIndex};
 pub use vector_search::{VectorIndex, VectorQuery, HybridQuery, HybridSearchEngine, HybridSearchResult, CombinationMethod};
 pub use dimension_reduction::{DimensionReducer, ReductionMethod};
+pub use demo::populate_demo_data;
 
 #[cfg(feature = "grpc")]
 pub use grpc::server::GrpcServer;

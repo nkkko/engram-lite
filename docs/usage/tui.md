@@ -1,6 +1,6 @@
-# Terminal User Interface
+# User Interfaces
 
-EngramAI Lite includes a Terminal User Interface (TUI) mode that provides an interactive terminal-based interface for visualizing and interacting with the memory graph.
+EngramAI Lite includes both a Terminal User Interface (TUI) mode and a Web User Interface for visualizing and interacting with the memory graph. The TUI provides a terminal-based interactive experience, while the Web UI offers a browser-based interface for more visual exploration.
 
 ## Features
 
@@ -113,6 +113,62 @@ The fallback mode does not support interactive navigation or commands but ensure
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+# Web User Interface
+
+The Web UI provides a browser-based interface for exploring and interacting with the memory graph.
+
+## Features
+
+- Dashboard with system statistics
+- Navigation to different entity types:
+  - Engrams - Knowledge units with content and metadata
+  - Connections - Typed relationships between engrams
+  - Collections - Named groupings of engrams with details view
+  - Agents - Entities with capabilities and metadata
+- API documentation page
+- Demo data integration
+- Responsive design
+
+## Usage
+
+```bash
+# Start the web server
+engramlt web
+
+# Specify a database path
+engramlt web --db-path /path/to/database
+
+# Specify a custom port (default is 3000)
+engramlt web --port 8080 --db-path /path/to/database
+```
+
+## Demo Data
+
+To populate the database with realistic demo data showcasing a multi-agent collaboration scenario:
+
+```bash
+# Generate demo data
+engramlt demo --db-path /path/to/database
+
+# Start the web server to view the demo data
+engramlt web --db-path /path/to/database
+```
+
+The demo data includes:
+- Four agent types (developer, tester, documenter, project manager)
+- Multiple engram types (code snippets, documentation, tests, discussions)
+- Typed relationships between engrams
+- Collections for organizing the project data
+- A shared context for collaboration
+
+## Accessing the Web UI
+
+After starting the web server, you can access the Web UI at:
+
+```
+http://localhost:3000
+```
+
 ## Future Enhancements
 
 The following enhancements are planned for future releases:
@@ -123,3 +179,5 @@ The following enhancements are planned for future releases:
 - Visual query builder
 - Export/import functionality
 - Keyboard shortcuts customization
+- Data manipulation forms
+- Interactive query interface
