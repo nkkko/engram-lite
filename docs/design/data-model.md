@@ -15,6 +15,10 @@ An Engram is the atomic unit of knowledge in the system. It represents a single 
 - **timestamp** (`DateTime<Utc>`): When this engram was created
 - **source** (`String`): Where this knowledge came from
 - **confidence** (`f64`): Certainty score between 0.0 and 1.0
+- **importance** (`f64`): Score between 0.0 and 1.0 representing importance
+- **access_count** (`u32`): Number of times this engram has been accessed/retrieved
+- **last_accessed** (`DateTime<Utc>`): When this engram was last accessed
+- **ttl** (`Option<u64>`): Time-to-live in seconds (None means no expiration)
 - **metadata** (`HashMap<String, Value>`): Additional custom metadata
 
 #### Rust Implementation:
@@ -26,6 +30,10 @@ pub struct Engram {
     pub timestamp: DateTime<Utc>,
     pub source: String,
     pub confidence: f64,
+    pub importance: f64,
+    pub access_count: u32,
+    pub last_accessed: DateTime<Utc>,
+    pub ttl: Option<u64>,
     pub metadata: Metadata,
 }
 ```
@@ -161,9 +169,11 @@ All core types support arbitrary metadata as key-value pairs. This provides flex
 Common metadata fields include:
 
 - **tags** (`Array<String>`): Labels for categorization
-- **importance** (`Number`): A score indicating importance
-- **last_accessed** (`DateTime`): When this item was last accessed
+- **category** (`String`): General categorization or grouping
 - **embedding** (`Array<Number>`): Vector embedding for AI search
+- **source_url** (`String`): URL where the information was retrieved from
+
+Note: While importance and access tracking were previously handled via metadata, they're now first-class properties of the Engram type for better performance and functionality.
 
 Example usage:
 

@@ -432,11 +432,15 @@ async fn graph_page(data: web::Data<AppState>) -> impl Responder {
         }
     }
     
+    // Print debug information
+    println!("Graph data: {} nodes, {} edges", cy_nodes.len(), cy_edges.len());
+    
     // Combine nodes and edges
     let all_elements = [cy_nodes, cy_edges].concat();
     
-    // Convert graph data to JSON string to avoid template issues
+    // Convert graph data to JSON string for direct embedding as JavaScript object
     let graph_data_json = serde_json::to_string(&all_elements).unwrap_or_else(|_| "[]".to_string());
+    
     context.insert("graph_data_json", &graph_data_json);
     context.insert("version", "0.1.0");
     

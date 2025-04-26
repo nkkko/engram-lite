@@ -9,6 +9,7 @@ EngramAI Lite is a memory graph storage system designed for AI agents. It provid
 - **Memory Graph Storage**: Store knowledge in a structured graph with typed, weighted connections
 - **Persistent Storage**: RocksDB-based persistence with ACID transaction support
 - **Efficient Indexes**: Fast traversal and search capabilities for relationship queries
+- **Memory Management**: Importance scoring, temporal retrieval, forgetting mechanisms, and TTL-based expiration
 - **CLI Tool**: Command-line interface for interacting with the memory graph
 - **Web UI**: Browser-based interface for exploring the memory graph
 - **Demo Data**: Realistic multi-agent collaboration scenario with sample data
@@ -16,11 +17,12 @@ EngramAI Lite is a memory graph storage system designed for AI agents. It provid
 
 ## Core Components
 
-- **Engram**: Atomic unit of knowledge with metadata (confidence, timestamp, source)
+- **Engram**: Atomic unit of knowledge with metadata (confidence, timestamp, source, importance)
 - **Connection**: Typed relationship between engrams with strength/weight
 - **Collection**: Named grouping of engrams for organization
 - **Agent**: Entity with capabilities and access controls
 - **Context**: Shareable environment for agent collaboration
+- **ForgettingPolicy**: Strategy for pruning less important or outdated memories
 
 ## Quick Start
 
@@ -99,6 +101,9 @@ In-memory graph representation using `petgraph` for fast traversal and query ope
 Specialized indexes for efficient queries and traversals:
 - RelationshipIndex: Optimized for traversing connections between engrams
 - MetadataIndex: Fast lookup of engrams by metadata fields
+- TextIndex: Fast keyword search across engram content
+- TemporalIndex: Time-based organization and retrieval of engrams
+- ImportanceIndex: Tracks importance scores, access patterns, and TTL
 - SearchIndex: Combined index for efficient search across multiple dimensions
 
 ### 5. CLI Interface
@@ -121,6 +126,7 @@ For detailed documentation, see:
 - [Storage Design](docs/design/storage.md)
 - [Graph Engine](docs/design/graph-engine.md)
 - [Indexing System](docs/design/indexing.md)
+- [Memory Management](docs/design/memory-management.md)
 
 ## Roadmap
 

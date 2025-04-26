@@ -188,39 +188,49 @@
 
 **Value:** Remote access to memory system, enabling multi-client usage and service-oriented architecture
 
-## Milestone 5: Memory Management [P1]
+## Milestone 5: Memory Management [P1] ✅
 **Goal:** Add intelligence to memory management with temporal features and forgetting
 
-- [ ] [P1] Implement temporal capabilities
-  - [ ] Add timestamp tracking for all operations
-  - [ ] Create temporal query operators (before/after)
-  - [ ] Implement recency-based relevance scoring
-  - [ ] Add temporal sequence detection
-    - [ ] Build temporal chain identification algorithm
-    - [ ] Implement cause-effect relationship detection
-    - [ ] Create temporal reasoning API for sequence analysis
-  - [ ] Develop time-aware retrieval mechanisms
-    - [ ] Implement time window filtering with contextual relevance
-    - [ ] Add decay functions for temporal relevance
-    - [ ] Create time-sensitive connection weighting
-- [ ] [P1] Build forgetting mechanisms
-  - [ ] Add confidence and importance scoring
-    - [ ] Implement centrality-based importance calculation
-    - [ ] Create access frequency tracking for importance
-    - [ ] Add multi-factor importance scoring algorithm
-  - [ ] Implement configurable forgetting policies
-    - [ ] Create age-based forgetting strategy
-    - [ ] Add importance-threshold forgetting strategy
-    - [ ] Implement hybrid forgetting policy framework
-  - [ ] Create memory pruning and compaction
-    - [ ] Build memory graph health analysis tools
-    - [ ] Implement automated pruning recommendations
-    - [ ] Add manual pruning interface with safeguards
-  - [ ] Add TTL support for ephemeral engrams
-- [ ] [P1] Add RocksDB optimizations
-  - [ ] Implement tiered storage for hot/cold data
-  - [ ] Optimize for write-heavy workloads
-  - [ ] Add intelligent compaction policies
+- [x] [P1] Implement temporal capabilities
+  - [x] Add timestamp tracking for all operations
+  - [x] Create temporal query operators (before/after)
+  - [x] Implement recency-based relevance scoring
+  - [x] Add temporal sequence detection
+    - [x] Build temporal chain identification algorithm
+    - [x] Implement cause-effect relationship detection
+    - [x] Create temporal reasoning API for sequence analysis
+  - [x] Develop time-aware retrieval mechanisms
+    - [x] Implement time window filtering with contextual relevance
+    - [x] Add decay functions for temporal relevance
+    - [x] Create time-sensitive connection weighting
+  - [ ] [P1] Implement bi-temporal data model
+    - [ ] Add event occurrence timeline (T) tracking
+    - [ ] Add data ingestion timeline (T') tracking
+    - [ ] Create point-in-time query capabilities
+    - [ ] Implement relative time extraction from text
+- [x] [P1] Build forgetting mechanisms
+  - [x] Add confidence and importance scoring
+    - [x] Implement centrality-based importance calculation
+    - [x] Create access frequency tracking for importance
+    - [x] Add multi-factor importance scoring algorithm
+  - [x] Implement configurable forgetting policies
+    - [x] Create age-based forgetting strategy
+    - [x] Add importance-threshold forgetting strategy
+    - [x] Implement hybrid forgetting policy framework
+  - [x] Create memory pruning and compaction
+    - [x] Build memory graph health analysis tools
+    - [x] Implement automated pruning recommendations
+    - [x] Add manual pruning interface with safeguards
+  - [x] Add TTL support for ephemeral engrams
+  - [ ] [P1] Implement edge invalidation for contradictions
+    - [ ] Add temporal validity tracking for edges
+    - [ ] Create contradiction detection system
+    - [ ] Implement non-destructive edge invalidation
+    - [ ] Build historical relationship evolution tracking
+- [x] [P1] Add RocksDB optimizations
+  - [x] Implement tiered storage for hot/cold data
+  - [x] Optimize for write-heavy workloads
+  - [x] Add intelligent compaction policies
 
 **Value:** Intelligent memory management that prioritizes recent and important information, mimicking human memory
 
@@ -238,17 +248,38 @@
   - [x] Create web UI template pages for browsing demo data
   - [ ] Create interactive tutorials for common usage patterns
   - [ ] Add visual graph exploration tools
-- [ ] [P1] Build MCP server basics (mcp-full-llms.txt)
-  - [ ] Implement core MCP server specification
-  - [ ] Create basic memory tools for MCP (add_engram, get_engram, query, engram_relate, memory_summarize)
-  - [ ] Add integration examples with Claude and other MCP clients
-  - [ ] Build a Remote MCP Server on Cloudflare (cf-remote-mcp.txt)
-  - [ ] Create content validation mechanisms using LLMs
+- [ ] [P1] Build MCP server (based on Graphiti example)
+  - [ ] [P0] Implement core MCP server specification
+  - [ ] [P1] Create basic memory tools for MCP (add_engram, get_engram, query, engram_relate, memory_summarize)
+  - [ ] [P1] Add integration examples with Claude and other MCP clients
+  - [ ] [P1] Build a Remote MCP Server on Cloudflare (cf-remote-mcp.txt)
+  - [ ] [P1] Create content validation mechanisms using LLMs
+  - [ ] [P1] Add transaction support for atomic operations
+  - [ ] [P2] Implement multi-provider LLM support (OpenAI, Azure, Google Gemini, Anthropic, Groq)
+- [ ] [P1] Implement LLM-based knowledge extraction
+  - [ ] [P1] Create entity extraction system using LLMs with context-aware processing
+  - [ ] [P1] Implement relationship detection between entities
+  - [ ] [P1] Build entity resolution system to avoid duplicates
+  - [ ] [P1] Implement reflection technique inspired by "reflexion" to minimize hallucinations
+  - [ ] [P2] Add fact extraction capabilities
+  - [ ] [P2] Implement temporal information extraction from text
+- [ ] [P1] Enhance search and retrieval with hybrid approach
+  - [ ] [P1] Implement unified retrieval system combining vectors, keywords, and graph traversal
+  - [ ] [P1] Create incremental update capabilities without batch recomputation
+  - [ ] [P1] Implement multiple reranking strategies
+    - [ ] Add Reciprocal Rank Fusion (RRF)
+    - [ ] Implement Maximal Marginal Relevance (MMR)
+    - [ ] Create graph-based episode-mentions reranker
+    - [ ] Build node distance reranker
+    - [ ] Add cross-encoder LLM reranker
+  - [ ] [P2] Implement LongMemEval benchmark for evaluation
+  - [ ] [P2] Add comparison benchmarks against other memory systems
 - [ ] [P1] Develop reflection capabilities
   - [ ] Create summarization endpoints
   - [ ] Implement community detection algorithms
     - [ ] Add Louvain method for community identification
     - [ ] Implement hierarchical community clustering
+    - [ ] [P1] Build automatically detected clusters of strongly connected entities
     - [ ] Create visualization tools for communities
   - [ ] Implement memory-based insight generation
     - [ ] Add pattern recognition for recurring knowledge
@@ -311,6 +342,12 @@
   - [x] Choose and integrate a JavaScript graph visualization library (Cytoscape.js).
   - [x] Implement fetching graph data subsets for visualization.
   - [x] Display a basic interactive graph visualization allowing pan, zoom, and node click.
+  - [ ] [P1] Enhance graph visualization capabilities
+    - [ ] Add temporal animation for evolving graphs
+    - [ ] Implement node grouping by community/collection
+    - [ ] Create visual indicators for edge validity/invalidation
+    - [ ] Add interactive filtering by relationship types
+    - [ ] Implement heat maps for importance/recency
 - [x] [P1] Add UI launch mechanisms
   - [x] Implement a CLI command (`engramlt web`) that starts the UI backend component.
   - [x] Add configuration options (port number) via CLI flags.
@@ -318,21 +355,37 @@
   - [x] Create a user guide specific to the web UI.
   - [x] Document installation, launching, and basic usage.
   - [ ] Explain how to perform common tasks (add data, search, view graph).
+- [ ] [P1] Add alternative REST API with FastAPI
+  - [ ] Create OpenAPI schema for all endpoints
+  - [ ] Implement parallel gRPC and REST interfaces
+  - [ ] Add API key-based authentication
+  - [ ] Create interactive Swagger UI documentation
 
 **Value:** Provides an intuitive visual way for users to interact with, explore, and manage their memory graphs without relying solely on the CLI or raw API calls. Lowers the barrier to entry and makes complex data structures more understandable.
 
 
 ## Milestone 9: Performance & Scalability [P2]
-**Goal:** Enhance system to handle large-scale deployments
+**Goal:** Enhance system to handle large-scale deployments with sub-20ms query latency
 
+- [ ] [P1] Optimize for low latency (sub-20ms goal)
+  - [ ] Implement comprehensive performance benchmarking suite
+  - [ ] Benchmark against other systems (Zep/Graphiti, Neo4j)
+  - [ ] Optimize RocksDB configuration for minimal read latency
+  - [ ] Create performance dashboards and monitoring
+  - [ ] Implement circuit breakers for latency protection
+  - [ ] Establish SLOs for different query types
 - [ ] [P2] Implement caching layer
   - [ ] Add in-memory cache for hot data
   - [ ] Create cache invalidation system
   - [ ] Implement configurable caching policies
+  - [ ] Add tiered caching strategy (L1/L2)
+  - [ ] Implement predictive pre-caching for related engrams
 - [ ] [P2] Optimize for scale
   - [ ] Add parallel query execution
   - [ ] Implement connection pooling
   - [ ] Create query optimization layer
+  - [ ] Add asynchronous query pipeline
+  - [ ] Implement request batching for related operations
   - [ ] Implement advanced graph algorithms
     - [ ] Add PageRank for engram importance scoring
     - [ ] Implement betweenness centrality for identifying bridge nodes
@@ -349,6 +402,8 @@
   - [ ] Implement basic sharding strategy
   - [ ] Create replication support
   - [ ] Add cluster coordination
+  - [ ] Implement data partitioning based on access patterns
+  - [ ] Create federated query capability across partitions
 - [ ] [P2] Add knowledge graph analysis capabilities
   - [ ] Implement graph embeddings for node representation
   - [ ] Create knowledge distillation algorithms

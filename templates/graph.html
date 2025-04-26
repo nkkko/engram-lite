@@ -193,7 +193,11 @@
         </div>
     </div>
 
-    <div id="cy"></div>
+    <div id="cy">
+        <div id="no-data-message" style="display: none; text-align: center; padding: 20px; font-size: 18px; color: #777;">
+            No graph data available. Please run 'engramlt demo' to populate the database with sample data.
+        </div>
+    </div>
 
     <div class="node-info" id="node-info">
         <span class="close-btn" id="close-info">×</span>
@@ -232,8 +236,14 @@
     </div>
 
     <script>
-        // Graph data from server
-        const graphData = JSON.parse('{{ graph_data_json | safe }}');
+        // Graph data from server - direct embedding as JavaScript object
+        const graphData = {{ graph_data_json | safe }};
+        console.log("Parsed graph data:", graphData);
+
+        // Check if we have graph data
+        if (!graphData || graphData.length === 0) {
+            document.getElementById('no-data-message').style.display = 'block';
+        }
 
         // Initialize Cytoscape instance
         const cy = cytoscape({

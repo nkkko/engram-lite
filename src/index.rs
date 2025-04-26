@@ -1,6 +1,7 @@
 use crate::error::Result;
 use crate::schema::{EngramId, ConnectionId, Collection, Connection, Engram};
 use std::collections::{HashMap, HashSet};
+use chrono::{Datelike, Timelike};
 
 /// Efficient indexes for fast relationship traversal
 #[allow(dead_code)]
@@ -1082,8 +1083,6 @@ impl ImportanceIndex {
         older_than: &chrono::DateTime<chrono::Utc>,
         limit: usize
     ) -> Vec<EngramId> {
-        let mut candidates = HashSet::new();
-        
         // Get engrams with low importance
         let low_importance = self.importance_sorted.iter()
             .rev() // Start from least important
@@ -1104,7 +1103,7 @@ impl ImportanceIndex {
             .collect::<HashSet<_>>();
         
         // Find intersection of all three sets
-        candidates = low_importance.intersection(&low_access_count).cloned().collect();
+        let mut candidates = low_importance.intersection(&low_access_count).cloned().collect::<HashSet<_>>();
         candidates = candidates.intersection(&old_access).cloned().collect();
         
         // Sort candidates by importance (least important first)

@@ -62,6 +62,7 @@ nav:
     - Storage: design/storage.md
     - Graph Engine: design/graph-engine.md
     - Indexing: design/indexing.md
+    - Memory Management: design/memory-management.md
   - About:
     - Roadmap: about/roadmap.md
     - Contributing: about/contributing.md

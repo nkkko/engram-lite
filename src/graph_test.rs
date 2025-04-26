@@ -276,6 +276,8 @@ mod tests {
             Some("category"),
             Some("monuments"),
             false,
+            None,           // before_time
+            None,           // after_time
         );
         assert_eq!(combined_results.len(), 1); // Should match only the Paris landmarks engram
         

@@ -178,6 +178,8 @@ mod tests {
             Some("topic"),  // metadata key
             Some("climate"), // metadata value
             false,          // exact_match set to false
+            None,           // before_time
+            None,           // after_time
         );
         assert_eq!(combined_results.len(), 1);
         assert!(combined_results.contains(&"e1".to_string()));

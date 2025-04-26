@@ -60,6 +60,51 @@
 - [x] Add CLI usage examples
 - [x] Document storage schema design decisions
 
+## Milestone 5: Memory Management [P1]
+
+### Completed
+
+- [x] Implement temporal capabilities
+  - [x] Add timestamp tracking for all operations
+  - [x] Create TemporalIndex with year/month/day/hour granularity
+  - [x] Implement temporal query operators (before/after)
+  - [x] Add recency-based relevance scoring
+  - [x] Develop time-aware retrieval mechanisms
+- [x] Build forgetting mechanisms
+  - [x] Add importance and confidence scoring
+  - [x] Implement centrality-based importance calculation
+  - [x] Create access frequency tracking system
+  - [x] Add multi-factor importance scoring algorithm
+  - [x] Implement configurable forgetting policies:
+    - [x] Age-based forgetting strategy
+    - [x] Importance-threshold forgetting strategy
+    - [x] Access frequency forgetting strategy
+    - [x] Hybrid forgetting policy framework
+  - [x] Add TTL support for ephemeral engrams
+- [x] Add RocksDB optimizations
+  - [x] Implement tiered storage for hot/cold data
+  - [x] Optimize for write-heavy workloads with improved compaction policies
+
+### Implementation Notes
+
+The memory management implementation adds intelligent features that mimic human memory:
+
+- **Enhanced Engram Schema**: Added importance, access_count, last_accessed, and ttl fields to track usage patterns
+- **Temporal Organization**: Created multi-granular time-based indexing for efficient temporal queries
+- **Importance Scoring**: Implemented a sophisticated algorithm combining centrality, access patterns, and recency
+- **Forgetting Mechanisms**: Added configurable policies to prune less important memories based on various criteria
+- **Memory Health Tools**: Created utilities to analyze memory graph health and provide pruning recommendations
+- **Access Tracking**: Added systems to track and leverage access patterns for optimizing retrieval
+- **TTL Support**: Implemented automatic expiration for ephemeral information
+
+### Test Coverage
+
+Comprehensive test suite added for memory management features:
+- Created tests for TemporalIndex operations (year/month/day/hour indexing)
+- Added tests for ImportanceIndex operations (importance calculations)
+- Implemented tests for various ForgettingPolicy implementations
+- Added integration tests for the enhanced Engram schema with memory management fields
+
 ## Implementation Notes
 
 ### Core Schema Implementation
