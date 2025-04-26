@@ -307,10 +307,10 @@
   - [ ] Create a persistent input area for typing commands or executing queries.
   - [ ] Implement sending commands/queries to the backend via API.
   - [ ] Display results in a user-friendly format (structured tables for query results).
-- [ ] [P1] Integrate interactive graph visualization
-  - [ ] Choose and integrate a JavaScript graph visualization library.
-  - [ ] Implement fetching graph data subsets for visualization.
-  - [ ] Display a basic interactive graph visualization allowing pan, zoom, and node click.
+- [x] [P1] Integrate interactive graph visualization
+  - [x] Choose and integrate a JavaScript graph visualization library (Cytoscape.js).
+  - [x] Implement fetching graph data subsets for visualization.
+  - [x] Display a basic interactive graph visualization allowing pan, zoom, and node click.
 - [x] [P1] Add UI launch mechanisms
   - [x] Implement a CLI command (`engramlt web`) that starts the UI backend component.
   - [x] Add configuration options (port number) via CLI flags.

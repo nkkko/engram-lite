@@ -125,6 +125,13 @@ The Web UI provides a browser-based interface for exploring and interacting with
   - Connections - Typed relationships between engrams
   - Collections - Named groupings of engrams with details view
   - Agents - Entities with capabilities and metadata
+- Interactive graph visualization with Cytoscape.js:
+  - Visual exploration of the entire knowledge graph
+  - Filtering by relationship types
+  - Node selection and detail viewing
+  - Multiple layout algorithms
+  - Search functionality
+  - Responsive controls
 - API documentation page
 - Demo data integration
 - Responsive design

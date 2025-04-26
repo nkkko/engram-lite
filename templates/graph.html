@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EngramAI Lite - Graph Visualization</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+        }
+        .container {
+            width: 100%;
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 0;
+        }
+        header {
+            background-color: #2c3e50;
+            color: #fff;
+            padding: 1rem 0;
+            margin-bottom: 0;
+        }
+        header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+        h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        .navbar {
+            display: flex;
+        }
+        .navbar a {
+            color: #fff;
+            text-decoration: none;
+            margin-left: 1.5rem;
+            font-weight: 500;
+        }
+        .navbar a:hover {
+            text-decoration: underline;
+        }
+        .controls {
+            padding: 10px 20px;
+            background-color: white;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+        }
+        .control-group > * {
+            margin-right: 15px;
+        }
+        select, button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+            font-size: 14px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #cy {
+            width: 100%;
+            height: calc(100vh - 130px); /* Full height minus header and controls */
+            background-color: #f8f9fa;
+        }
+        .node-info {
+            position: absolute;
+            right: 20px;
+            top: 120px;
+            width: 300px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            z-index: 1000;
+            display: none;
+        }
+        .node-info h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 1px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        .node-meta {
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+        .node-meta div {
+            margin-bottom: 5px;
+        }
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #7f8c8d;
+        }
+        .legend {
+            position: absolute;
+            left: 20px;
+            bottom: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            z-index: 1000;
+            font-size: 0.9rem;
+        }
+        .legend-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        footer {
+            display: none; /* Hide footer to maximize graph space */
+        }
+    </style>
+    <script src="https://unpkg.com/cytoscape@3.25.0/dist/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/layout-base@2.0.1/layout-base.js"></script>
+    <script src="https://unpkg.com/cose-base@2.1.0/cose-base.js"></script>
+    <script src="https://unpkg.com/cytoscape-cose-bilkent@4.1.0/cytoscape-cose-bilkent.js"></script>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Graph Visualization</h1>
+            <div class="navbar">
+                <a href="/">Home</a>
+                <a href="/engrams">Engrams</a>
+                <a href="/connections">Connections</a>
+                <a href="/collections">Collections</a>
+                <a href="/agents">Agents</a>
+                <a href="/graph">Graph</a>
+                <a href="/api-docs">API Docs</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="controls">
+        <div class="control-group">
+            <select id="layout-select">
+                <option value="cose-bilkent">Cose-Bilkent (Default)</option>
+                <option value="concentric">Concentric</option>
+                <option value="breadthfirst">Breadth-first</option>
+                <option value="circle">Circle</option>
+                <option value="grid">Grid</option>
+            </select>
+            <select id="filter-select">
+                <option value="all">All Connections</option>
+                <option value="implements">Implements</option>
+                <option value="verified_by">Verified By</option>
+                <option value="documented_by">Documented By</option>
+                <option value="influences">Influences</option>
+                <option value="relates_to">Relates To</option>
+                <option value="followed_by">Followed By</option>
+            </select>
+            <button id="fit-btn">Fit to Screen</button>
+        </div>
+        <div class="control-group">
+            <input id="search-input" type="text" placeholder="Search nodes..." style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; width: 200px;">
+            <button id="search-btn">Search</button>
+        </div>
+    </div>
+
+    <div id="cy"></div>
+
+    <div class="node-info" id="node-info">
+        <span class="close-btn" id="close-info">×</span>
+        <h3 id="node-title">Node Title</h3>
+        <div id="node-content">Content will appear here</div>
+        <div class="node-meta">
+            <div id="node-id">ID: </div>
+            <div id="node-source">Source: </div>
+            <div id="node-confidence">Confidence: </div>
+            <div id="node-type">Type: </div>
+        </div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-title">Legend</div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #3498db;"></div>
+            <div>Engram</div>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #2ecc71;"></div>
+            <div>Implements</div>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #9b59b6;"></div>
+            <div>Verified By</div>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #f39c12;"></div>
+            <div>Documented By</div>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #e74c3c;"></div>
+            <div>Influences</div>
+        </div>
+    </div>
+
+    <script>
+        // Graph data from server
+        const graphData = JSON.parse('{{ graph_data_json | safe }}');
+
+        // Initialize Cytoscape instance
+        const cy = cytoscape({
+            container: document.getElementById('cy'),
+            elements: graphData,
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'background-color': '#3498db',
+                        'label': 'data(label)',
+                        'color': '#fff',
+                        'text-outline-color': '#3498db',
+                        'text-outline-width': 2,
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'font-size': 12,
+                        'width': 'mapData(confidence, 0, 1, 30, 50)',
+                        'height': 'mapData(confidence, 0, 1, 30, 50)',
+                        'border-width': 2,
+                        'border-color': '#2980b9'
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 'mapData(weight, 0, 1, 1, 5)',
+                        'line-color': '#95a5a6',
+                        'target-arrow-color': '#95a5a6',
+                        'target-arrow-shape': 'triangle',
+                        'curve-style': 'bezier',
+                        'label': 'data(relationshipType)',
+                        'font-size': 10,
+                        'text-rotation': 'autorotate',
+                        'text-background-color': 'white',
+                        'text-background-opacity': 0.7,
+                        'text-background-padding': 2
+                    }
+                },
+                {
+                    selector: 'edge[relationshipType="implements"]',
+                    style: {
+                        'line-color': '#2ecc71',
+                        'target-arrow-color': '#2ecc71'
+                    }
+                },
+                {
+                    selector: 'edge[relationshipType="verified_by"]',
+                    style: {
+                        'line-color': '#9b59b6',
+                        'target-arrow-color': '#9b59b6'
+                    }
+                },
+                {
+                    selector: 'edge[relationshipType="documented_by"]',
+                    style: {
+                        'line-color': '#f39c12',
+                        'target-arrow-color': '#f39c12'
+                    }
+                },
+                {
+                    selector: 'edge[relationshipType="influences"]',
+                    style: {
+                        'line-color': '#e74c3c',
+                        'target-arrow-color': '#e74c3c'
+                    }
+                },
+                {
+                    selector: 'edge[relationshipType="relates_to"]',
+                    style: {
+                        'line-color': '#1abc9c',
+                        'target-arrow-color': '#1abc9c'
+                    }
+                },
+                {
+                    selector: 'edge[relationshipType="followed_by"]',
+                    style: {
+                        'line-color': '#34495e',
+                        'target-arrow-color': '#34495e'
+                    }
+                },
+                {
+                    selector: '.highlighted',
+                    style: {
+                        'background-color': '#e74c3c',
+                        'line-color': '#e74c3c',
+                        'target-arrow-color': '#e74c3c',
+                        'transition-property': 'background-color, line-color, target-arrow-color',
+                        'transition-duration': '0.5s'
+                    }
+                },
+                {
+                    selector: '.faded',
+                    style: {
+                        'opacity': 0.25,
+                        'text-opacity': 0
+                    }
+                },
+                {
+                    selector: '.search-match',
+                    style: {
+                        'background-color': '#f1c40f',
+                        'border-color': '#f39c12',
+                        'border-width': 4,
+                        'transition-property': 'background-color, border-color, border-width',
+                        'transition-duration': '0.5s'
+                    }
+                }
+            ],
+            layout: {
+                name: 'cose-bilkent',
+                quality: 'default',
+                nodeDimensionsIncludeLabels: true,
+                fit: true,
+                padding: 50,
+                randomize: true,
+                animate: false,
+                nodeRepulsion: 4500,
+                idealEdgeLength: 150,
+                edgeElasticity: 0.45,
+                nestingFactor: 0.1,
+                numIter: 2500
+            }
+        });
+
+        // Layout selection handling
+        document.getElementById('layout-select').addEventListener('change', function(e) {
+            const layoutName = e.target.value;
+            
+            let layoutOptions = {
+                name: layoutName,
+                fit: true,
+                padding: 50,
+                animate: false
+            };
+            
+            // Add specific options for each layout
+            if (layoutName === 'cose-bilkent') {
+                layoutOptions = {
+                    ...layoutOptions,
+                    quality: 'default',
+                    nodeDimensionsIncludeLabels: true,
+                    randomize: true,
+                    nodeRepulsion: 4500,
+                    idealEdgeLength: 150,
+                    edgeElasticity: 0.45,
+                    nestingFactor: 0.1,
+                    numIter: 2500
+                };
+            } else if (layoutName === 'concentric') {
+                layoutOptions = {
+                    ...layoutOptions,
+                    minNodeSpacing: 50,
+                    levelWidth: function(nodes) { return 2; }
+                };
+            } else if (layoutName === 'breadthfirst') {
+                layoutOptions = {
+                    ...layoutOptions,
+                    directed: true,
+                    spacingFactor: 1.5
+                };
+            }
+            
+            cy.layout(layoutOptions).run();
+        });
+
+        // Filter selection handling
+        document.getElementById('filter-select').addEventListener('change', function(e) {
+            const filterValue = e.target.value;
+            
+            // Reset all elements
+            cy.elements().removeClass('faded');
+            
+            if (filterValue !== 'all') {
+                // Show only edges of selected type and their connected nodes
+                const selectedEdges = cy.edges(`[relationshipType="${filterValue}"]`);
+                const connectedNodes = selectedEdges.connectedNodes();
+                
+                cy.elements().difference(selectedEdges.union(connectedNodes)).addClass('faded');
+            }
+        });
+
+        // Fit to screen button
+        document.getElementById('fit-btn').addEventListener('click', function() {
+            cy.fit();
+        });
+
+        // Search functionality
+        document.getElementById('search-btn').addEventListener('click', function() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            
+            // Clear previous search results
+            cy.elements().removeClass('search-match');
+            
+            if (searchTerm) {
+                // Find nodes that match the search term
+                const matchingNodes = cy.nodes().filter(node => {
+                    const content = node.data('content').toLowerCase();
+                    return content.includes(searchTerm);
+                });
+                
+                if (matchingNodes.length > 0) {
+                    matchingNodes.addClass('search-match');
+                    cy.fit(matchingNodes, 100);
+                }
+            }
+        });
+
+        // Allow search on Enter key press
+        document.getElementById('search-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('search-btn').click();
+            }
+        });
+
+        // Node selection and info display
+        cy.on('tap', 'node', function(evt) {
+            const node = evt.target;
+            const nodeInfo = document.getElementById('node-info');
+            
+            document.getElementById('node-title').textContent = node.data('label');
+            document.getElementById('node-content').textContent = node.data('content');
+            document.getElementById('node-id').textContent = 'ID: ' + node.id();
+            document.getElementById('node-source').textContent = 'Source: ' + node.data('source');
+            document.getElementById('node-confidence').textContent = 'Confidence: ' + node.data('confidence');
+            
+            const nodeType = node.data('metadata') && node.data('metadata').type 
+                ? node.data('metadata').type 
+                : 'Not specified';
+            document.getElementById('node-type').textContent = 'Type: ' + nodeType;
+            
+            nodeInfo.style.display = 'block';
+            
+            // Highlight the selected node and its connections
+            cy.elements().removeClass('highlighted faded');
+            node.addClass('highlighted');
+            node.neighborhood().addClass('highlighted');
+            cy.elements().difference(node.union(node.neighborhood())).addClass('faded');
+        });
+
+        // Background click to clear selection
+        cy.on('tap', function(event) {
+            if (event.target === cy) {
+                cy.elements().removeClass('highlighted faded');
+                document.getElementById('node-info').style.display = 'none';
+            }
+        });
+
+        // Close button for node info
+        document.getElementById('close-info').addEventListener('click', function() {
+            document.getElementById('node-info').style.display = 'none';
+            cy.elements().removeClass('highlighted faded');
+        });
+
+        // Initialize with fit to screen
+        cy.ready(function() {
+            cy.fit();
+        });
+    </script>
+</body>
+</html>

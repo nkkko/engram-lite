@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use std::env;
 use std::io::{self, Write};
 use std::path::Path;
+use std::process::Command;
 
 struct EngramCli {
     storage: Storage,
@@ -725,6 +726,7 @@ fn show_help() {
     println!("  tui             Start interactive Terminal UI mode");
     println!("  web             Start web server mode");
     println!("  demo            Populate database with demo data for a multi-agent coding project");
+    println!("  docs            Start documentation server with mkdocs");
     println!("  help            Show this help message");
     
     println!("\nOPTIONS:");
@@ -737,6 +739,50 @@ fn show_help() {
     println!("  engramlt tui               # Start TUI mode with default settings");
     println!("  engramlt web --port 8080   # Start web server on port 8080");
     println!("  engramlt demo --db-path /path/to/db   # Populate with demo data");
+    println!("  engramlt docs              # Start documentation server");
+}
+
+fn run_docs_server() -> Result<()> {
+    println!("Starting documentation server with mkdocs...");
+    
+    // Check if mkdocs is installed
+    let check_result = Command::new("which")
+        .arg("mkdocs")
+        .output();
+    
+    match check_result {
+        Ok(output) => {
+            if !output.status.success() {
+                println!("mkdocs is not installed. Please install it with: pip install mkdocs-material");
+                return Ok(());
+            }
+        },
+        Err(_) => {
+            println!("Failed to check if mkdocs is installed. Please install it with: pip install mkdocs-material");
+            return Ok(());
+        }
+    }
+    
+    // Start mkdocs server
+    println!("Starting mkdocs server...");
+    let port = 8000;
+    
+    let mut child = Command::new("mkdocs")
+        .arg("serve")
+        .arg("--dev-addr=localhost:8000")
+        .spawn()
+        .expect("Failed to start mkdocs server");
+    
+    println!("Documentation server running at: http://localhost:{}", port);
+    println!("Press Ctrl+C to stop the server");
+    
+    // Wait for the child process
+    match child.wait() {
+        Ok(_) => {},
+        Err(e) => println!("Error waiting for mkdocs server: {}", e),
+    }
+    
+    Ok(())
 }
 
 #[cfg(feature = "tui")]
@@ -824,6 +870,12 @@ fn main() -> Result<()> {
             println!("Populating database with demo data...");
             if let Err(e) = engram_lite::demo::populate_demo_data(&db_path) {
                 eprintln!("Error populating demo data: {}", e);
+            }
+        },
+        "docs" => {
+            // Start documentation server
+            if let Err(e) = run_docs_server() {
+                eprintln!("Error starting documentation server: {}", e);
             }
         },
         "help" => {

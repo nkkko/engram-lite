@@ -369,6 +369,86 @@ async fn api_docs_page(data: web::Data<AppState>) -> impl Responder {
         .body(rendered)
 }
 
+// Graph visualization page
+async fn graph_page(data: web::Data<AppState>) -> impl Responder {
+    let mut context = TeraContext::new();
+    let storage = &data.storage;
+    
+    // Prepare graph data for Cytoscape.js
+    let mut cy_nodes = Vec::new();
+    let mut cy_edges = Vec::new();
+    
+    // Get all engrams
+    if let Ok(engram_ids) = storage.list_engrams() {
+        for id in &engram_ids {
+            if let Ok(Some(engram)) = storage.get_engram(id) {
+                // Truncate content for display label if too long
+                let display_label = if engram.content.len() > 30 {
+                    format!("{}...", &engram.content[0..27])
+                } else {
+                    engram.content.clone()
+                };
+                
+                // Create Cytoscape node data
+                let node_data = serde_json::json!({
+                    "group": "nodes", 
+                    "data": {
+                        "id": engram.id,
+                        "label": display_label,
+                        "content": engram.content,
+                        "source": engram.source,
+                        "confidence": engram.confidence,
+                        "metadata": engram.metadata
+                    }
+                });
+                
+                cy_nodes.push(node_data);
+            }
+        }
+        
+        // Get all connections
+        if let Ok(connection_ids) = storage.list_connections() {
+            for id in &connection_ids {
+                if let Ok(Some(connection)) = storage.get_connection(id) {
+                    // Only include connections between existing engrams
+                    if engram_ids.contains(&connection.source_id) && 
+                       engram_ids.contains(&connection.target_id) {
+                        // Create Cytoscape edge data
+                        let edge_data = serde_json::json!({
+                            "group": "edges",
+                            "data": {
+                                "id": connection.id,
+                                "source": connection.source_id,
+                                "target": connection.target_id,
+                                "relationshipType": connection.relationship_type,
+                                "weight": connection.weight
+                            }
+                        });
+                        
+                        cy_edges.push(edge_data);
+                    }
+                }
+            }
+        }
+    }
+    
+    // Combine nodes and edges
+    let all_elements = [cy_nodes, cy_edges].concat();
+    
+    // Convert graph data to JSON string to avoid template issues
+    let graph_data_json = serde_json::to_string(&all_elements).unwrap_or_else(|_| "[]".to_string());
+    context.insert("graph_data_json", &graph_data_json);
+    context.insert("version", "0.1.0");
+    
+    let rendered = data.templates.render("graph.html", &context).unwrap_or_else(|e| {
+        format!("Template error: {}", e)
+    });
+    
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .body(rendered)
+}
+
 // API Routes - Engrams
 async fn api_get_engrams(data: web::Data<AppState>) -> impl Responder {
     let storage = &data.storage;
@@ -995,6 +1075,7 @@ pub fn start_server(db_path: &str, port: u16) -> EngramResult<()> {
                 .service(web::resource("/collections").to(collections_page))
                 .service(web::resource("/collections/{id}").to(collection_detail_page))
                 .service(web::resource("/agents").to(agents_page))
+                .service(web::resource("/graph").to(graph_page))
                 .service(web::resource("/api-docs").to(api_docs_page))
                 .service(fs::Files::new("/static", "static").show_files_listing())
                 // API routes
