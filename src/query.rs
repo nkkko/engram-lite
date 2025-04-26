@@ -245,13 +245,123 @@ pub struct QueryEngine<'a> {
     
     /// The search index
     index: &'a SearchIndex,
+    
+    /// The current forgetting policy
+    forgetting_policy: Option<crate::index::ForgettingPolicy>,
 }
 
 #[allow(dead_code)]
 impl<'a> QueryEngine<'a> {
     /// Create a new query engine
     pub fn new(storage: &'a Storage, index: &'a SearchIndex) -> Self {
-        Self { storage, index }
+        Self { 
+            storage, 
+            index,
+            forgetting_policy: None,
+        }
+    }
+    
+    /// Set the forgetting policy
+    pub fn set_forgetting_policy(&mut self, policy: Option<crate::index::ForgettingPolicy>) {
+        self.forgetting_policy = policy;
+    }
+    
+    /// Get the current forgetting policy
+    pub fn get_forgetting_policy(&self) -> Option<&crate::index::ForgettingPolicy> {
+        self.forgetting_policy.as_ref()
+    }
+    
+    /// Record an access to an engram
+    pub fn record_access(&self, id: &EngramId) -> Result<()> {
+        // Record access in the index
+        self.index.record_access(id)?;
+        
+        // Retrieve the engram to update
+        if let Some(mut engram) = self.storage.get_engram(id)? {
+            // Update access count and timestamp
+            engram.record_access();
+            
+            // Store the updated engram
+            self.storage.put_engram(&engram)?;
+        }
+        
+        Ok(())
+    }
+    
+    /// Update importance score for an engram
+    pub fn update_importance(&self, id: &EngramId, importance: f64) -> Result<()> {
+        // Update importance in the index
+        self.index.update_importance(id, importance)?;
+        
+        // Retrieve the engram to update
+        if let Some(mut engram) = self.storage.get_engram(id)? {
+            // Update importance score
+            engram.set_importance(importance);
+            
+            // Store the updated engram
+            self.storage.put_engram(&engram)?;
+        }
+        
+        Ok(())
+    }
+    
+    /// Set TTL for an engram
+    pub fn set_ttl(&self, id: &EngramId, ttl: Option<u64>) -> Result<()> {
+        // Update TTL in the index
+        self.index.set_ttl(id, ttl)?;
+        
+        // Retrieve the engram to update
+        if let Some(mut engram) = self.storage.get_engram(id)? {
+            // Update TTL
+            if let Some(seconds) = ttl {
+                engram.set_ttl(seconds);
+            } else {
+                engram.clear_ttl();
+            }
+            
+            // Store the updated engram
+            self.storage.put_engram(&engram)?;
+        }
+        
+        Ok(())
+    }
+    
+    /// Get forgetting candidates based on the current policy
+    pub fn get_forgetting_candidates(&self) -> Result<Vec<Engram>> {
+        if let Some(policy) = &self.forgetting_policy {
+            // Get candidate IDs based on the policy
+            let candidate_ids = policy.get_forgetting_candidates(self.index);
+            
+            // Fetch the full engram objects
+            let mut candidates = Vec::new();
+            for id in candidate_ids {
+                if let Some(engram) = self.storage.get_engram(&id)? {
+                    candidates.push(engram);
+                }
+            }
+            
+            Ok(candidates)
+        } else {
+            Ok(Vec::new()) // No policy, no candidates
+        }
+    }
+    
+    /// Apply forgetting by removing the engrams selected by the policy
+    pub fn apply_forgetting(&self) -> Result<usize> {
+        // Get forgetting candidates
+        let candidates = self.get_forgetting_candidates()?;
+        
+        // Count of successfully forgotten engrams
+        let mut forgotten_count = 0;
+        
+        // Remove each candidate
+        for engram in candidates {
+            if self.storage.delete_engram(&engram.id).is_ok() {
+                forgotten_count += 1;
+            }
+        }
+        
+        Ok(forgotten_count)
     }
     
     /// Execute an engram query and return matching engrams
@@ -556,11 +666,121 @@ impl<'a> QueryService<'a> {
         &self.query_engine
     }
     
+    /// Get a mutable reference to the query engine
+    pub fn get_query_engine_mut(&mut self) -> &mut QueryEngine<'a> {
+        &mut self.query_engine
+    }
+    
     /// Create a new query service
     pub fn new(storage: &'a Storage, index: &'a SearchIndex) -> Self {
         Self {
             query_engine: QueryEngine::new(storage, index),
             traversal_engine: TraversalEngine::new(storage, index),
+        }
+    }
+    
+    /// Set the forgetting policy
+    pub fn set_forgetting_policy(&mut self, policy: Option<crate::index::ForgettingPolicy>) {
+        self.query_engine.set_forgetting_policy(policy);
+    }
+    
+    /// Get the current forgetting policy
+    pub fn get_forgetting_policy(&self) -> Option<&crate::index::ForgettingPolicy> {
+        self.query_engine.get_forgetting_policy()
+    }
+    
+    /// Record an access to an engram
+    pub fn record_engram_access(&self, id: &EngramId) -> Result<()> {
+        self.query_engine.record_access(id)
+    }
+    
+    /// Update importance score for an engram
+    pub fn update_engram_importance(&self, id: &EngramId, importance: f64) -> Result<()> {
+        self.query_engine.update_importance(id, importance)
+    }
+    
+    /// Set TTL for an engram
+    pub fn set_engram_ttl(&self, id: &EngramId, ttl_seconds: Option<u64>) -> Result<()> {
+        self.query_engine.set_ttl(id, ttl_seconds)
+    }
+    
+    /// Get forgetting candidates based on the current policy
+    pub fn get_forgetting_candidates(&self) -> Result<Vec<Engram>> {
+        self.query_engine.get_forgetting_candidates()
+    }
+    
+    /// Apply forgetting by removing the engrams selected by the policy
+    pub fn apply_forgetting(&self) -> Result<usize> {
+        self.query_engine.apply_forgetting()
+    }
+    
+    /// Calculate importance score based on node centrality
+    pub fn calculate_importance_by_centrality(&self, id: &EngramId) -> Result<f64> {
+        // Get incoming and outgoing connections
+        let incoming = self.find_all_connections(id)?
+            .into_iter()
+            .filter(|conn| &conn.target_id == id)
+            .count() as f64;
+        
+        let outgoing = self.find_all_connections(id)?
+            .into_iter()
+            .filter(|conn| &conn.source_id == id)
+            .count() as f64;
+        
+        // Simple centrality score - more connections = more important
+        // Normalize to 0.0-1.0 range using a logarithmic scale
+        let connection_count = incoming + outgoing;
+        let importance = if connection_count > 0.0 {
+            (1.0 + connection_count.ln().max(0.0) / 5.0).min(1.0)
+        } else {
+            0.2 // Base importance for isolated engrams
+        };
+        
+        // Update the importance
+        self.query_engine.update_importance(id, importance)?;
+        
+        Ok(importance)
+    }
+    
+    /// Create an age-based forgetting policy
+    pub fn create_age_based_policy(&self, max_age_days: u32, max_items: usize) -> crate::index::ForgettingPolicy {
+        crate::index::ForgettingPolicy::AgeBased {
+            max_age_seconds: max_age_days as u64 * 86400, // Convert days to seconds
+            max_items,
+        }
+    }
+    
+    /// Create an importance-threshold forgetting policy
+    pub fn create_importance_threshold_policy(&self, max_importance: f64, max_items: usize) -> crate::index::ForgettingPolicy {
+        crate::index::ForgettingPolicy::ImportanceThreshold {
+            max_importance,
+            max_items,
+        }
+    }
+    
+    /// Create an access-frequency forgetting policy
+    pub fn create_access_frequency_policy(&self, max_access_count: u32, min_idle_days: u32, max_items: usize) -> crate::index::ForgettingPolicy {
+        crate::index::ForgettingPolicy::AccessFrequency {
+            max_access_count,
+            min_idle_seconds: min_idle_days as u64 * 86400, // Convert days to seconds
+            max_items,
+        }
+    }
+    
+    /// Create a hybrid forgetting policy
+    pub fn create_hybrid_policy(&self, max_importance: f64, max_access_count: u32, min_idle_days: u32, max_items: usize) -> crate::index::ForgettingPolicy {
+        crate::index::ForgettingPolicy::Hybrid {
+            max_importance,
+            max_access_count,
+            min_idle_seconds: min_idle_days as u64 * 86400, // Convert days to seconds
+            max_items,
+        }
+    }
+    
+    /// Create a TTL-based expiration policy
+    pub fn create_ttl_policy(&self, max_items: usize) -> crate::index::ForgettingPolicy {
+        crate::index::ForgettingPolicy::TTLExpiration {
+            max_items,
         }
     }
     

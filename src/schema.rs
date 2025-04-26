@@ -28,20 +28,80 @@ pub struct Engram {
     /// Certainty score between 0.0 and 1.0
     pub confidence: f64,
     
+    /// Importance score computed from centrality, access frequency, and other factors
+    /// - Range: 0.0 to 1.0 (higher means more important)
+    pub importance: f64,
+    
+    /// Number of times this engram has been accessed/retrieved
+    pub access_count: u32,
+    
+    /// Last time this engram was accessed/retrieved
+    pub last_accessed: DateTime<Utc>,
+    
+    /// Time-to-live in seconds (None means no expiration)
+    pub ttl: Option<u64>,
+    
     /// Additional custom metadata
     pub metadata: Metadata,
 }
 
 impl Engram {
     pub fn new(content: String, source: String, confidence: f64, metadata: Option<Metadata>) -> Self {
+        let now = Utc::now();
         Self {
             id: Uuid::new_v4().to_string(),
             content,
-            timestamp: Utc::now(),
+            timestamp: now,
             source,
             confidence,
+            importance: 0.5, // Default to medium importance
+            access_count: 0,
+            last_accessed: now,
+            ttl: None,       // No expiration by default
             metadata: metadata.unwrap_or_default(),
         }
+    }
+    
+    /// Record an access to this engram
+    pub fn record_access(&mut self) {
+        self.access_count += 1;
+        self.last_accessed = Utc::now();
+    }
+    
+    /// Set importance score directly
+    pub fn set_importance(&mut self, importance: f64) {
+        // Ensure importance is within valid range
+        self.importance = importance.max(0.0).min(1.0);
+    }
+    
+    /// Set time-to-live (TTL) in seconds
+    pub fn set_ttl(&mut self, seconds: u64) {
+        self.ttl = Some(seconds);
+    }
+    
+    /// Remove TTL (make the engram permanent)
+    pub fn clear_ttl(&mut self) {
+        self.ttl = None;
+    }
+    
+    /// Check if the engram has expired based on its TTL
+    pub fn is_expired(&self) -> bool {
+        if let Some(ttl) = self.ttl {
+            let elapsed = Utc::now().signed_duration_since(self.timestamp).num_seconds() as u64;
+            elapsed > ttl
+        } else {
+            false
+        }
+    }
+    
+    /// Calculate time remaining before expiration (in seconds)
+    /// Returns None if the engram doesn't expire
+    pub fn time_remaining(&self) -> Option<i64> {
+        self.ttl.map(|ttl| {
+            let elapsed = Utc::now().signed_duration_since(self.timestamp).num_seconds();
+            let remaining = ttl as i64 - elapsed;
+            remaining.max(0)
+        })
     }
 }
 

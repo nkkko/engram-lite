@@ -750,6 +750,378 @@ impl TemporalIndex {
     }
 }
 
+/// Index for tracking engram importance and managing forgetting
+pub struct ImportanceIndex {
+    /// Engrams indexed by importance buckets (0.0-1.0 in 0.1 increments)
+    importance_buckets: HashMap<u8, HashSet<EngramId>>,
+    
+    /// Engrams sorted by importance score (most important first)
+    importance_sorted: Vec<(EngramId, f64)>,
+    
+    /// Engrams indexed by access frequency buckets
+    access_buckets: HashMap<u8, HashSet<EngramId>>,
+    
+    /// Engrams sorted by access recency (most recently accessed first)
+    recency_sorted: Vec<(EngramId, chrono::DateTime<chrono::Utc>)>,
+    
+    /// Map from engram ID to importance score for quick lookup
+    importance_map: HashMap<EngramId, f64>,
+    
+    /// Map from engram ID to access count for quick lookup
+    access_count_map: HashMap<EngramId, u32>,
+    
+    /// Map from engram ID to last access time for quick lookup
+    last_accessed_map: HashMap<EngramId, chrono::DateTime<chrono::Utc>>,
+    
+    /// Map from engram ID to TTL information (expiration timestamp)
+    ttl_map: HashMap<EngramId, Option<u64>>,
+}
+
+#[allow(dead_code)]
+impl ImportanceIndex {
+    /// Create a new, empty importance index
+    pub fn new() -> Self {
+        Self {
+            importance_buckets: HashMap::new(),
+            importance_sorted: Vec::new(),
+            access_buckets: HashMap::new(),
+            recency_sorted: Vec::new(),
+            importance_map: HashMap::new(),
+            access_count_map: HashMap::new(),
+            last_accessed_map: HashMap::new(),
+            ttl_map: HashMap::new(),
+        }
+    }
+    
+    /// Add an engram to the index
+    pub fn add_engram(&mut self, engram: &Engram) -> Result<()> {
+        let id = &engram.id;
+        
+        // Add to importance buckets
+        let importance_bucket = (engram.importance * 10.0).floor() as u8;
+        self.importance_buckets
+            .entry(importance_bucket)
+            .or_insert_with(HashSet::new)
+            .insert(id.clone());
+        
+        // Add to importance sorted list
+        match self.importance_sorted.binary_search_by(|(_, imp)| {
+            imp.partial_cmp(&engram.importance).unwrap().reverse() // Reverse for most important first
+        }) {
+            Ok(pos) => self.importance_sorted.insert(pos, (id.clone(), engram.importance)),
+            Err(pos) => self.importance_sorted.insert(pos, (id.clone(), engram.importance)),
+        }
+        
+        // Add to access buckets
+        let access_bucket = if engram.access_count > 100 {
+            10 // Cap at bucket 10 for very frequent access
+        } else {
+            (engram.access_count / 10) as u8 // 0-9 buckets for 0-99 accesses
+        };
+        self.access_buckets
+            .entry(access_bucket)
+            .or_insert_with(HashSet::new)
+            .insert(id.clone());
+        
+        // Add to recency sorted list
+        match self.recency_sorted.binary_search_by(|(_, time)| {
+            time.cmp(&engram.last_accessed).reverse() // Reverse for most recent first
+        }) {
+            Ok(pos) => self.recency_sorted.insert(pos, (id.clone(), engram.last_accessed)),
+            Err(pos) => self.recency_sorted.insert(pos, (id.clone(), engram.last_accessed)),
+        }
+        
+        // Update maps for quick lookup
+        self.importance_map.insert(id.clone(), engram.importance);
+        self.access_count_map.insert(id.clone(), engram.access_count);
+        self.last_accessed_map.insert(id.clone(), engram.last_accessed);
+        self.ttl_map.insert(id.clone(), engram.ttl);
+        
+        Ok(())
+    }
+    
+    /// Remove an engram from the index
+    pub fn remove_engram(&mut self, engram: &Engram) -> Result<()> {
+        let id = &engram.id;
+        
+        // Remove from importance map and buckets
+        if let Some(importance) = self.importance_map.remove(id) {
+            let bucket = (importance * 10.0).floor() as u8;
+            if let Some(engrams) = self.importance_buckets.get_mut(&bucket) {
+                engrams.remove(id);
+                if engrams.is_empty() {
+                    self.importance_buckets.remove(&bucket);
+                }
+            }
+        }
+        
+        // Remove from access count map and buckets
+        if let Some(access_count) = self.access_count_map.remove(id) {
+            let bucket = if access_count > 100 {
+                10 // Cap at bucket 10 for very frequent access
+            } else {
+                (access_count / 10) as u8 // 0-9 buckets for 0-99 accesses
+            };
+            if let Some(engrams) = self.access_buckets.get_mut(&bucket) {
+                engrams.remove(id);
+                if engrams.is_empty() {
+                    self.access_buckets.remove(&bucket);
+                }
+            }
+        }
+        
+        // Remove from last accessed map
+        self.last_accessed_map.remove(id);
+        
+        // Remove from TTL map
+        self.ttl_map.remove(id);
+        
+        // Remove from sorted lists
+        if let Some(pos) = self.importance_sorted.iter().position(|(i, _)| i == id) {
+            self.importance_sorted.remove(pos);
+        }
+        
+        if let Some(pos) = self.recency_sorted.iter().position(|(i, _)| i == id) {
+            self.recency_sorted.remove(pos);
+        }
+        
+        Ok(())
+    }
+    
+    /// Update an engram's importance score
+    pub fn update_importance(&mut self, id: &EngramId, new_importance: f64) -> Result<()> {
+        // Ensure importance is within valid range
+        let new_importance = new_importance.max(0.0).min(1.0);
+        
+        // Get old importance bucket
+        let old_importance = self.importance_map.get(id).cloned().unwrap_or(0.5);
+        let old_bucket = (old_importance * 10.0).floor() as u8;
+        
+        // Get new importance bucket
+        let new_bucket = (new_importance * 10.0).floor() as u8;
+        
+        // Update importance buckets if the bucket has changed
+        if old_bucket != new_bucket {
+            // Remove from old bucket
+            if let Some(engrams) = self.importance_buckets.get_mut(&old_bucket) {
+                engrams.remove(id);
+                if engrams.is_empty() {
+                    self.importance_buckets.remove(&old_bucket);
+                }
+            }
+            
+            // Add to new bucket
+            self.importance_buckets
+                .entry(new_bucket)
+                .or_insert_with(HashSet::new)
+                .insert(id.clone());
+        }
+        
+        // Update importance map
+        self.importance_map.insert(id.clone(), new_importance);
+        
+        // Update importance sorted list
+        if let Some(pos) = self.importance_sorted.iter().position(|(i, _)| i == id) {
+            self.importance_sorted.remove(pos);
+            
+            // Insert at new position
+            match self.importance_sorted.binary_search_by(|(_, imp)| {
+                imp.partial_cmp(&new_importance).unwrap().reverse() // Reverse for most important first
+            }) {
+                Ok(pos) => self.importance_sorted.insert(pos, (id.clone(), new_importance)),
+                Err(pos) => self.importance_sorted.insert(pos, (id.clone(), new_importance)),
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Record an access to an engram
+    pub fn record_access(&mut self, id: &EngramId) -> Result<()> {
+        // Get current access count
+        let old_count = self.access_count_map.get(id).cloned().unwrap_or(0);
+        let new_count = old_count + 1;
+        
+        // Get old and new access buckets
+        let old_bucket = if old_count > 100 {
+            10
+        } else {
+            (old_count / 10) as u8
+        };
+        
+        let new_bucket = if new_count > 100 {
+            10
+        } else {
+            (new_count / 10) as u8
+        };
+        
+        // Update access buckets if the bucket has changed
+        if old_bucket != new_bucket {
+            // Remove from old bucket
+            if let Some(engrams) = self.access_buckets.get_mut(&old_bucket) {
+                engrams.remove(id);
+                if engrams.is_empty() {
+                    self.access_buckets.remove(&old_bucket);
+                }
+            }
+            
+            // Add to new bucket
+            self.access_buckets
+                .entry(new_bucket)
+                .or_insert_with(HashSet::new)
+                .insert(id.clone());
+        }
+        
+        // Update access count map
+        self.access_count_map.insert(id.clone(), new_count);
+        
+        // Update last accessed time
+        let now = chrono::Utc::now();
+        self.last_accessed_map.insert(id.clone(), now);
+        
+        // Update recency sorted list
+        if let Some(pos) = self.recency_sorted.iter().position(|(i, _)| i == id) {
+            self.recency_sorted.remove(pos);
+            
+            // Insert at the beginning (most recent)
+            self.recency_sorted.insert(0, (id.clone(), now));
+        }
+        
+        Ok(())
+    }
+    
+    /// Set or update TTL for an engram
+    pub fn set_ttl(&mut self, id: &EngramId, ttl: Option<u64>) -> Result<()> {
+        self.ttl_map.insert(id.clone(), ttl);
+        Ok(())
+    }
+    
+    /// Get engrams by minimum importance
+    pub fn find_by_min_importance(&self, min_importance: f64) -> HashSet<EngramId> {
+        let min_bucket = (min_importance * 10.0).floor() as u8;
+        let mut result = HashSet::new();
+        
+        // Combine all buckets at or above the minimum
+        for bucket in min_bucket..=10 {
+            if let Some(engrams) = self.importance_buckets.get(&bucket) {
+                result.extend(engrams.iter().cloned());
+            }
+        }
+        
+        result
+    }
+    
+    /// Get engrams by minimum access count
+    pub fn find_by_min_access_count(&self, min_count: u32) -> HashSet<EngramId> {
+        let mut result = HashSet::new();
+        
+        // Calculate minimum bucket
+        let min_bucket = if min_count > 100 {
+            10
+        } else {
+            (min_count / 10) as u8
+        };
+        
+        // Combine all buckets at or above the minimum
+        for bucket in min_bucket..=10 {
+            if let Some(engrams) = self.access_buckets.get(&bucket) {
+                result.extend(engrams.iter().cloned());
+            }
+        }
+        
+        result
+    }
+    
+    /// Get engrams by access recency
+    pub fn find_by_last_accessed_after(&self, time: &chrono::DateTime<chrono::Utc>) -> HashSet<EngramId> {
+        let mut result = HashSet::new();
+        
+        for (id, last_accessed) in &self.recency_sorted {
+            if last_accessed >= time {
+                result.insert(id.clone());
+            } else {
+                // Since the list is sorted by recency, we can break early
+                break;
+            }
+        }
+        
+        result
+    }
+    
+    /// Get engrams sorted by importance (most important first)
+    pub fn get_most_important(&self, count: usize) -> Vec<EngramId> {
+        self.importance_sorted.iter().take(count).map(|(id, _)| id.clone()).collect()
+    }
+    
+    /// Get expired engrams based on TTL
+    pub fn get_expired_engrams(&self) -> HashSet<EngramId> {
+        let now = chrono::Utc::now();
+        let mut result = HashSet::new();
+        
+        // Check each engram with a TTL
+        for (id, ttl_opt) in &self.ttl_map {
+            if let Some(ttl) = ttl_opt {
+                // Calculate creation time from the timestamp map
+                if let Some(last_accessed) = self.last_accessed_map.get(id) {
+                    let elapsed = now.signed_duration_since(*last_accessed).num_seconds() as u64;
+                    if elapsed > *ttl {
+                        result.insert(id.clone());
+                    }
+                }
+            }
+        }
+        
+        result
+    }
+    
+    /// Calculate forgetting candidates based on importance, access count, and recency
+    pub fn get_forgetting_candidates(
+        &self,
+        max_importance: f64,
+        max_access_count: u32,
+        older_than: &chrono::DateTime<chrono::Utc>,
+        limit: usize
+    ) -> Vec<EngramId> {
+        let mut candidates = HashSet::new();
+        
+        // Get engrams with low importance
+        let low_importance = self.importance_sorted.iter()
+            .rev() // Start from least important
+            .filter(|(_, imp)| *imp <= max_importance)
+            .map(|(id, _)| id.clone())
+            .collect::<HashSet<_>>();
+        
+        // Get engrams with low access count
+        let low_access_count = self.access_count_map.iter()
+            .filter(|(_, count)| **count <= max_access_count)
+            .map(|(id, _)| id.clone())
+            .collect::<HashSet<_>>();
+        
+        // Get engrams that haven't been accessed recently
+        let old_access = self.last_accessed_map.iter()
+            .filter(|(_, time)| *time < older_than)
+            .map(|(id, _)| id.clone())
+            .collect::<HashSet<_>>();
+        
+        // Find intersection of all three sets
+        candidates = low_importance.intersection(&low_access_count).cloned().collect();
+        candidates = candidates.intersection(&old_access).cloned().collect();
+        
+        // Sort candidates by importance (least important first)
+        let mut candidates_vec: Vec<_> = candidates.into_iter().collect();
+        candidates_vec.sort_by(|a, b| {
+            let a_imp = self.importance_map.get(a).unwrap_or(&0.5);
+            let b_imp = self.importance_map.get(b).unwrap_or(&0.5);
+            a_imp.partial_cmp(b_imp).unwrap()
+        });
+        
+        // Limit the number of candidates
+        candidates_vec.truncate(limit);
+        
+        candidates_vec
+    }
+}
+
 /// Combined search index for efficient querying
 pub struct SearchIndex {
     /// Relationship index for traversal
@@ -763,6 +1135,9 @@ pub struct SearchIndex {
     
     /// Temporal index for time-based operations
     pub temporal_index: TemporalIndex,
+    
+    /// Importance index for importance scoring and forgetting
+    pub importance_index: ImportanceIndex,
     
     /// Source index for filtering by source
     source_index: HashMap<String, HashSet<EngramId>>,
@@ -780,6 +1155,7 @@ impl SearchIndex {
             metadata_index: MetadataIndex::new(),
             text_index: TextIndex::new(),
             temporal_index: TemporalIndex::new(),
+            importance_index: ImportanceIndex::new(),
             source_index: HashMap::new(),
             confidence_index: HashMap::new(),
         }
@@ -795,6 +1171,9 @@ impl SearchIndex {
         
         // Index by temporal properties
         self.temporal_index.add_engram(engram)?;
+        
+        // Index by importance, access count, and TTL
+        self.importance_index.add_engram(engram)?;
         
         // Index by source
         self.source_index
@@ -828,6 +1207,9 @@ impl SearchIndex {
         // Remove from temporal index
         self.temporal_index.remove_engram(engram)?;
         
+        // Remove from importance index
+        self.importance_index.remove_engram(engram)?;
+        
         // Remove from source index
         if let Some(engrams) = self.source_index.get_mut(&engram.source) {
             engrams.remove(&engram.id);
@@ -836,7 +1218,31 @@ impl SearchIndex {
             }
         }
         
+        // Remove from confidence index
+        let confidence_bucket = (engram.confidence * 10.0).floor() as u8;
+        if let Some(engrams) = self.confidence_index.get_mut(&confidence_bucket) {
+            engrams.remove(&engram.id);
+            if engrams.is_empty() {
+                self.confidence_index.remove(&confidence_bucket);
+            }
+        }
+        
         Ok(())
+    }
+    
+    /// Record an access to an engram
+    pub fn record_access(&mut self, id: &EngramId) -> Result<()> {
+        self.importance_index.record_access(id)
+    }
+    
+    /// Update an engram's importance score
+    pub fn update_importance(&mut self, id: &EngramId, importance: f64) -> Result<()> {
+        self.importance_index.update_importance(id, importance)
+    }
+    
+    /// Set or update TTL for an engram
+    pub fn set_ttl(&mut self, id: &EngramId, ttl: Option<u64>) -> Result<()> {
+        self.importance_index.set_ttl(id, ttl)
     }
     
     /// Remove an engram from the index by ID
@@ -888,6 +1294,47 @@ impl SearchIndex {
         }
         
         result
+    }
+    
+    /// Find engrams by minimum importance score
+    pub fn find_by_min_importance(&self, min_importance: f64) -> HashSet<EngramId> {
+        self.importance_index.find_by_min_importance(min_importance)
+    }
+    
+    /// Find engrams by minimum access count
+    pub fn find_by_min_access_count(&self, min_count: u32) -> HashSet<EngramId> {
+        self.importance_index.find_by_min_access_count(min_count)
+    }
+    
+    /// Find engrams accessed after a specific time
+    pub fn find_by_last_accessed_after(&self, time: &chrono::DateTime<chrono::Utc>) -> HashSet<EngramId> {
+        self.importance_index.find_by_last_accessed_after(time)
+    }
+    
+    /// Get the most important engrams
+    pub fn get_most_important(&self, count: usize) -> Vec<EngramId> {
+        self.importance_index.get_most_important(count)
+    }
+    
+    /// Get expired engrams based on TTL
+    pub fn get_expired_engrams(&self) -> HashSet<EngramId> {
+        self.importance_index.get_expired_engrams()
+    }
+    
+    /// Get forgetting candidates based on importance, access frequency, and recency
+    pub fn get_forgetting_candidates(
+        &self,
+        max_importance: f64,
+        max_access_count: u32,
+        older_than: &chrono::DateTime<chrono::Utc>,
+        limit: usize
+    ) -> Vec<EngramId> {
+        self.importance_index.get_forgetting_candidates(
+            max_importance,
+            max_access_count,
+            older_than,
+            limit
+        )
     }
     
     /// Find engrams created before a specific timestamp
@@ -1035,6 +1482,119 @@ impl SearchIndex {
             None,
             None,
         )
+    }
+}
+
+/// Forgetting policy for memory pruning
+#[derive(Debug, Clone)]
+pub enum ForgettingPolicy {
+    /// Forget engrams based on age
+    AgeBased {
+        /// Maximum age in seconds before considering forgetting
+        max_age_seconds: u64,
+        /// Maximum number of engrams to forget in one operation
+        max_items: usize,
+    },
+    
+    /// Forget engrams based on importance threshold
+    ImportanceThreshold {
+        /// Maximum importance score for forgetting candidates (0.0-1.0)
+        max_importance: f64,
+        /// Maximum number of engrams to forget in one operation
+        max_items: usize,
+    },
+    
+    /// Forget engrams based on access frequency
+    AccessFrequency {
+        /// Maximum access count for forgetting candidates
+        max_access_count: u32,
+        /// Minimum time since last access (in seconds)
+        min_idle_seconds: u64,
+        /// Maximum number of engrams to forget in one operation
+        max_items: usize,
+    },
+    
+    /// Hybrid policy combining importance, access frequency, and age
+    Hybrid {
+        /// Maximum importance score for forgetting candidates (0.0-1.0)
+        max_importance: f64,
+        /// Maximum access count for forgetting candidates
+        max_access_count: u32,
+        /// Minimum time since last access (in seconds)
+        min_idle_seconds: u64,
+        /// Maximum number of engrams to forget in one operation
+        max_items: usize,
+    },
+    
+    /// Time-to-live (TTL) based expiration
+    TTLExpiration {
+        /// Maximum number of engrams to forget in one operation
+        max_items: usize,
+    },
+}
+
+impl ForgettingPolicy {
+    /// Execute the forgetting policy on the given index and return engrams to forget
+    pub fn get_forgetting_candidates(&self, index: &SearchIndex) -> Vec<EngramId> {
+        match self {
+            Self::AgeBased { max_age_seconds, max_items } => {
+                // Calculate timestamp threshold
+                let threshold = chrono::Utc::now() - chrono::Duration::seconds(*max_age_seconds as i64);
+                
+                // Get engrams created before threshold
+                let candidates = index.find_by_before_timestamp(&threshold);
+                
+                // Sort by age (oldest first) and limit
+                let mut candidates_vec: Vec<_> = candidates.into_iter().collect();
+                candidates_vec.truncate(*max_items);
+                candidates_vec
+            },
+            
+            Self::ImportanceThreshold { max_importance, max_items } => {
+                // Get engrams with importance below threshold
+                let candidates = index.find_by_min_importance(*max_importance);
+                
+                // Limit number of candidates
+                let mut candidates_vec: Vec<_> = candidates.into_iter().collect();
+                candidates_vec.truncate(*max_items);
+                candidates_vec
+            },
+            
+            Self::AccessFrequency { max_access_count, min_idle_seconds, max_items } => {
+                // Calculate access time threshold
+                let threshold = chrono::Utc::now() - chrono::Duration::seconds(*min_idle_seconds as i64);
+                
+                // Get engrams with low access count and not accessed recently
+                let infrequent = index.find_by_min_access_count(*max_access_count);
+                let old_access = index.find_by_last_accessed_after(&threshold);
+                
+                // Find intersection
+                let candidates: HashSet<_> = infrequent.difference(&old_access).cloned().collect();
+                
+                // Limit number of candidates
+                let mut candidates_vec: Vec<_> = candidates.into_iter().collect();
+                candidates_vec.truncate(*max_items);
+                candidates_vec
+            },
+            
+            Self::Hybrid { max_importance, max_access_count, min_idle_seconds, max_items } => {
+                // Calculate access time threshold
+                let threshold = chrono::Utc::now() - chrono::Duration::seconds(*min_idle_seconds as i64);
+                
+                // Get forgetting candidates using the combined criteria
+                index.get_forgetting_candidates(*max_importance, *max_access_count, &threshold, *max_items)
+            },
+            
+            Self::TTLExpiration { max_items } => {
+                // Get expired engrams based on TTL
+                let candidates = index.get_expired_engrams();
+                
+                // Limit number of candidates
+                let mut candidates_vec: Vec<_> = candidates.into_iter().collect();
+                candidates_vec.truncate(*max_items);
+                candidates_vec
+            },
+        }
     }
 }
 
