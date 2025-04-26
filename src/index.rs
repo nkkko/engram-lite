@@ -518,6 +518,238 @@ impl TextIndex {
     }
 }
 
+/// Index for tracking engrams by time periods
+pub struct TemporalIndex {
+    /// Engrams indexed by year
+    year_index: HashMap<i32, HashSet<EngramId>>,
+    
+    /// Engrams indexed by year-month (format: YYYYMM as i32)
+    month_index: HashMap<i32, HashSet<EngramId>>,
+    
+    /// Engrams indexed by year-month-day (format: YYYYMMDD as i32)
+    day_index: HashMap<i32, HashSet<EngramId>>,
+    
+    /// Engrams indexed by hour buckets (24 buckets, 0-23)
+    hour_index: HashMap<u8, HashSet<EngramId>>,
+    
+    /// Sorted list of engram IDs by recency (most recent first)
+    recency_list: Vec<EngramId>,
+    
+    /// Map of engram IDs to their timestamp for quick access
+    timestamp_map: HashMap<EngramId, chrono::DateTime<chrono::Utc>>,
+}
+
+#[allow(dead_code)]
+impl TemporalIndex {
+    /// Create a new, empty temporal index
+    pub fn new() -> Self {
+        Self {
+            year_index: HashMap::new(),
+            month_index: HashMap::new(),
+            day_index: HashMap::new(),
+            hour_index: HashMap::new(),
+            recency_list: Vec::new(),
+            timestamp_map: HashMap::new(),
+        }
+    }
+    
+    /// Add an engram to the index
+    pub fn add_engram(&mut self, engram: &Engram) -> Result<()> {
+        let timestamp = engram.timestamp;
+        
+        // Extract time components
+        let year = timestamp.year();
+        let month = timestamp.month() as i32;
+        let day = timestamp.day() as i32;
+        let hour = timestamp.hour() as u8;
+        
+        // Index by year
+        self.year_index
+            .entry(year)
+            .or_insert_with(HashSet::new)
+            .insert(engram.id.clone());
+        
+        // Index by year-month (YYYYMM format)
+        let year_month = year * 100 + month;
+        self.month_index
+            .entry(year_month)
+            .or_insert_with(HashSet::new)
+            .insert(engram.id.clone());
+        
+        // Index by year-month-day (YYYYMMDD format)
+        let year_month_day = year_month * 100 + day;
+        self.day_index
+            .entry(year_month_day)
+            .or_insert_with(HashSet::new)
+            .insert(engram.id.clone());
+        
+        // Index by hour
+        self.hour_index
+            .entry(hour)
+            .or_insert_with(HashSet::new)
+            .insert(engram.id.clone());
+        
+        // Store timestamp for quick access
+        self.timestamp_map.insert(engram.id.clone(), timestamp);
+        
+        // Find position to insert in recency list (binary search)
+        match self.recency_list.binary_search_by(|id| {
+            self.timestamp_map
+                .get(id)
+                .unwrap()
+                .cmp(&timestamp)
+                .reverse() // Reverse for most recent first
+        }) {
+            Ok(pos) => self.recency_list.insert(pos, engram.id.clone()),
+            Err(pos) => self.recency_list.insert(pos, engram.id.clone()),
+        }
+        
+        Ok(())
+    }
+    
+    /// Remove an engram from the index
+    pub fn remove_engram(&mut self, engram: &Engram) -> Result<()> {
+        let id = &engram.id;
+        
+        // Remove from timestamp map
+        if let Some(timestamp) = self.timestamp_map.remove(id) {
+            // Extract time components
+            let year = timestamp.year();
+            let month = timestamp.month() as i32;
+            let day = timestamp.day() as i32;
+            let hour = timestamp.hour() as u8;
+            
+            // Remove from year index
+            if let Some(engrams) = self.year_index.get_mut(&year) {
+                engrams.remove(id);
+                if engrams.is_empty() {
+                    self.year_index.remove(&year);
+                }
+            }
+            
+            // Remove from month index
+            let year_month = year * 100 + month;
+            if let Some(engrams) = self.month_index.get_mut(&year_month) {
+                engrams.remove(id);
+                if engrams.is_empty() {
+                    self.month_index.remove(&year_month);
+                }
+            }
+            
+            // Remove from day index
+            let year_month_day = year_month * 100 + day;
+            if let Some(engrams) = self.day_index.get_mut(&year_month_day) {
+                engrams.remove(id);
+                if engrams.is_empty() {
+                    self.day_index.remove(&year_month_day);
+                }
+            }
+            
+            // Remove from hour index
+            if let Some(engrams) = self.hour_index.get_mut(&hour) {
+                engrams.remove(id);
+                if engrams.is_empty() {
+                    self.hour_index.remove(&hour);
+                }
+            }
+            
+            // Remove from recency list
+            if let Some(pos) = self.recency_list.iter().position(|x| x == id) {
+                self.recency_list.remove(pos);
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Find engrams created in a specific year
+    pub fn find_by_year(&self, year: i32) -> HashSet<EngramId> {
+        self.year_index
+            .get(&year)
+            .cloned()
+            .unwrap_or_else(HashSet::new)
+    }
+    
+    /// Find engrams created in a specific month (year and month)
+    pub fn find_by_month(&self, year: i32, month: u32) -> HashSet<EngramId> {
+        let year_month = year * 100 + month as i32;
+        self.month_index
+            .get(&year_month)
+            .cloned()
+            .unwrap_or_else(HashSet::new)
+    }
+    
+    /// Find engrams created on a specific day (year, month, and day)
+    pub fn find_by_day(&self, year: i32, month: u32, day: u32) -> HashSet<EngramId> {
+        let year_month = year * 100 + month as i32;
+        let year_month_day = year_month * 100 + day as i32;
+        self.day_index
+            .get(&year_month_day)
+            .cloned()
+            .unwrap_or_else(HashSet::new)
+    }
+    
+    /// Find engrams created during a specific hour of the day (0-23)
+    pub fn find_by_hour(&self, hour: u32) -> HashSet<EngramId> {
+        if hour > 23 {
+            return HashSet::new();
+        }
+        
+        self.hour_index
+            .get(&(hour as u8))
+            .cloned()
+            .unwrap_or_else(HashSet::new)
+    }
+    
+    /// Find engrams created before a specific timestamp
+    pub fn find_before(&self, timestamp: &chrono::DateTime<chrono::Utc>) -> HashSet<EngramId> {
+        let mut result = HashSet::new();
+        
+        for (id, ts) in &self.timestamp_map {
+            if ts < timestamp {
+                result.insert(id.clone());
+            }
+        }
+        
+        result
+    }
+    
+    /// Find engrams created after a specific timestamp
+    pub fn find_after(&self, timestamp: &chrono::DateTime<chrono::Utc>) -> HashSet<EngramId> {
+        let mut result = HashSet::new();
+        
+        for (id, ts) in &self.timestamp_map {
+            if ts > timestamp {
+                result.insert(id.clone());
+            }
+        }
+        
+        result
+    }
+    
+    /// Find engrams created between two timestamps
+    pub fn find_between(
+        &self, 
+        start: &chrono::DateTime<chrono::Utc>, 
+        end: &chrono::DateTime<chrono::Utc>
+    ) -> HashSet<EngramId> {
+        let mut result = HashSet::new();
+        
+        for (id, ts) in &self.timestamp_map {
+            if ts >= start && ts <= end {
+                result.insert(id.clone());
+            }
+        }
+        
+        result
+    }
+    
+    /// Get most recent engrams
+    pub fn get_most_recent(&self, count: usize) -> Vec<EngramId> {
+        self.recency_list.iter().take(count).cloned().collect()
+    }
+}
+
 /// Combined search index for efficient querying
 pub struct SearchIndex {
     /// Relationship index for traversal
@@ -528,6 +760,9 @@ pub struct SearchIndex {
 
     /// Text index for keyword search
     pub text_index: TextIndex,
+    
+    /// Temporal index for time-based operations
+    pub temporal_index: TemporalIndex,
     
     /// Source index for filtering by source
     source_index: HashMap<String, HashSet<EngramId>>,
@@ -544,6 +779,7 @@ impl SearchIndex {
             relationship_index: RelationshipIndex::new(),
             metadata_index: MetadataIndex::new(),
             text_index: TextIndex::new(),
+            temporal_index: TemporalIndex::new(),
             source_index: HashMap::new(),
             confidence_index: HashMap::new(),
         }
@@ -556,6 +792,9 @@ impl SearchIndex {
         
         // Index by text content
         self.text_index.add_engram(engram)?;
+        
+        // Index by temporal properties
+        self.temporal_index.add_engram(engram)?;
         
         // Index by source
         self.source_index
@@ -585,6 +824,9 @@ impl SearchIndex {
         
         // Remove from text index
         self.text_index.remove_engram(engram)?;
+        
+        // Remove from temporal index
+        self.temporal_index.remove_engram(engram)?;
         
         // Remove from source index
         if let Some(engrams) = self.source_index.get_mut(&engram.source) {
@@ -648,6 +890,50 @@ impl SearchIndex {
         result
     }
     
+    /// Find engrams created before a specific timestamp
+    pub fn find_by_before_timestamp(&self, timestamp: &chrono::DateTime<chrono::Utc>) -> HashSet<EngramId> {
+        self.temporal_index.find_before(timestamp)
+    }
+    
+    /// Find engrams created after a specific timestamp
+    pub fn find_by_after_timestamp(&self, timestamp: &chrono::DateTime<chrono::Utc>) -> HashSet<EngramId> {
+        self.temporal_index.find_after(timestamp)
+    }
+    
+    /// Find engrams created between two timestamps
+    pub fn find_by_timestamp_range(
+        &self,
+        start: &chrono::DateTime<chrono::Utc>,
+        end: &chrono::DateTime<chrono::Utc>,
+    ) -> HashSet<EngramId> {
+        self.temporal_index.find_between(start, end)
+    }
+    
+    /// Find engrams created in a specific year
+    pub fn find_by_year(&self, year: i32) -> HashSet<EngramId> {
+        self.temporal_index.find_by_year(year)
+    }
+    
+    /// Find engrams created in a specific month
+    pub fn find_by_month(&self, year: i32, month: u32) -> HashSet<EngramId> {
+        self.temporal_index.find_by_month(year, month)
+    }
+    
+    /// Find engrams created on a specific day
+    pub fn find_by_day(&self, year: i32, month: u32, day: u32) -> HashSet<EngramId> {
+        self.temporal_index.find_by_day(year, month, day)
+    }
+    
+    /// Find engrams created during a specific hour
+    pub fn find_by_hour(&self, hour: u32) -> HashSet<EngramId> {
+        self.temporal_index.find_by_hour(hour)
+    }
+    
+    /// Get most recent engrams
+    pub fn get_most_recent(&self, count: usize) -> Vec<EngramId> {
+        self.temporal_index.get_most_recent(count)
+    }
+    
     /// Combine multiple search criteria with AND logic
     pub fn search_combined(
         &self,
@@ -657,6 +943,8 @@ impl SearchIndex {
         metadata_key: Option<&str>,
         metadata_value: Option<&str>,
         exact_match: bool,
+        before_time: Option<&chrono::DateTime<chrono::Utc>>,
+        after_time: Option<&chrono::DateTime<chrono::Utc>>,
     ) -> HashSet<EngramId> {
         let mut final_result: Option<HashSet<EngramId>> = None;
         
@@ -706,7 +994,47 @@ impl SearchIndex {
             });
         }
         
+        // Apply before time filter if provided
+        if let Some(time) = before_time {
+            let time_results = self.find_by_before_timestamp(time);
+            final_result = Some(match final_result {
+                Some(existing) => existing.intersection(&time_results).cloned().collect(),
+                None => time_results,
+            });
+        }
+        
+        // Apply after time filter if provided
+        if let Some(time) = after_time {
+            let time_results = self.find_by_after_timestamp(time);
+            final_result = Some(match final_result {
+                Some(existing) => existing.intersection(&time_results).cloned().collect(),
+                None => time_results,
+            });
+        }
+        
         final_result.unwrap_or_else(HashSet::new)
+    }
+    
+    /// Original search_combined method for backward compatibility
+    pub fn search_combined_legacy(
+        &self,
+        text_query: Option<&str>,
+        source: Option<&str>,
+        min_confidence: Option<f64>,
+        metadata_key: Option<&str>,
+        metadata_value: Option<&str>,
+        exact_match: bool,
+    ) -> HashSet<EngramId> {
+        self.search_combined(
+            text_query,
+            source,
+            min_confidence,
+            metadata_key,
+            metadata_value,
+            exact_match,
+            None,
+            None,
+        )
     }
 }
 

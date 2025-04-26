@@ -27,6 +27,24 @@ pub struct EngramQuery {
     
     /// Maximum number of results to return
     pub limit: Option<usize>,
+    
+    /// Optional filter for engrams created before this timestamp
+    pub before: Option<chrono::DateTime<chrono::Utc>>,
+    
+    /// Optional filter for engrams created after this timestamp
+    pub after: Option<chrono::DateTime<chrono::Utc>>,
+    
+    /// Optional filter for engrams created in a specific year
+    pub year: Option<i32>,
+    
+    /// Optional filter for engrams created in a specific month (requires year to be set)
+    pub month: Option<u32>,
+    
+    /// Optional filter for engrams created on a specific day (requires year and month to be set)
+    pub day: Option<u32>,
+    
+    /// Sort by recency (true = newest first, false = oldest first)
+    pub sort_by_recency: bool,
 }
 
 impl EngramQuery {
@@ -40,6 +58,12 @@ impl EngramQuery {
             metadata_value: None,
             exact_match: false,
             limit: None,
+            before: None,
+            after: None,
+            year: None,
+            month: None,
+            day: None,
+            sort_by_recency: true,
         }
     }
     
@@ -83,6 +107,52 @@ impl EngramQuery {
     /// Set result limit
     pub fn with_limit(mut self, limit: usize) -> Self {
         self.limit = Some(limit);
+        self
+    }
+    
+    /// Set filter for engrams created before a specific timestamp
+    pub fn with_before(mut self, timestamp: chrono::DateTime<chrono::Utc>) -> Self {
+        self.before = Some(timestamp);
+        self
+    }
+    
+    /// Set filter for engrams created after a specific timestamp
+    pub fn with_after(mut self, timestamp: chrono::DateTime<chrono::Utc>) -> Self {
+        self.after = Some(timestamp);
+        self
+    }
+    
+    /// Set filter for engrams created between two timestamps
+    pub fn with_time_range(mut self, start: chrono::DateTime<chrono::Utc>, end: chrono::DateTime<chrono::Utc>) -> Self {
+        self.after = Some(start);
+        self.before = Some(end);
+        self
+    }
+    
+    /// Set filter for engrams created in a specific year
+    pub fn with_year(mut self, year: i32) -> Self {
+        self.year = Some(year);
+        self
+    }
+    
+    /// Set filter for engrams created in a specific month
+    pub fn with_month(mut self, year: i32, month: u32) -> Self {
+        self.year = Some(year);
+        self.month = Some(month);
+        self
+    }
+    
+    /// Set filter for engrams created on a specific day
+    pub fn with_day(mut self, year: i32, month: u32, day: u32) -> Self {
+        self.year = Some(year);
+        self.month = Some(month);
+        self.day = Some(day);
+        self
+    }
+    
+    /// Set sort order by recency (true = newest first, false = oldest first)
+    pub fn with_sort_by_recency(mut self, newest_first: bool) -> Self {
+        self.sort_by_recency = newest_first;
         self
     }
 }
@@ -186,31 +256,99 @@ impl<'a> QueryEngine<'a> {
     
     /// Execute an engram query and return matching engrams
     pub fn query_engrams(&self, query: &EngramQuery) -> Result<Vec<Engram>> {
-        // Execute the query against the index
-        let ids = self.index.search_combined(
+        let mut engram_ids = HashSet::new();
+        
+        // Process basic search parameters using the combined search
+        engram_ids = self.index.search_combined(
             query.text.as_deref(),
             query.source.as_deref(),
             query.min_confidence,
             query.metadata_key.as_deref(),
             query.metadata_value.as_deref(),
             query.exact_match,
+            query.before.as_ref(),
+            query.after.as_ref(),
         );
+        
+        // Process additional temporal filters if not already covered by before/after
+        if query.before.is_none() && query.after.is_none() {
+            // Apply year filter if specified
+            if let Some(year) = query.year {
+                let year_results = self.index.find_by_year(year);
+                
+                // If we have existing results, intersect them
+                if !engram_ids.is_empty() {
+                    engram_ids = engram_ids.intersection(&year_results).cloned().collect();
+                } else {
+                    engram_ids = year_results;
+                }
+                
+                // If we also have month filter
+                if let Some(month) = query.month {
+                    let month_results = self.index.find_by_month(year, month);
+                    engram_ids = engram_ids.intersection(&month_results).cloned().collect();
+                    
+                    // If we also have day filter
+                    if let Some(day) = query.day {
+                        let day_results = self.index.find_by_day(year, month, day);
+                        engram_ids = engram_ids.intersection(&day_results).cloned().collect();
+                    }
+                }
+            }
+        }
+        
+        // If we have no results from filtering, return empty
+        if engram_ids.is_empty() && query.text.is_some() || query.source.is_some() 
+            || query.min_confidence.is_some() || query.metadata_key.is_some() 
+            || query.before.is_some() || query.after.is_some() || query.year.is_some() {
+            return Ok(Vec::new());
+        }
+        
+        // If no filtering was applied, get all engrams
+        if engram_ids.is_empty() {
+            // Just use a few recent engrams to avoid overwhelming the response
+            return Ok(self.get_most_recent_engrams(100)?);
+        }
         
         // Fetch the matching engrams
         let mut engrams = Vec::new();
-        for id in ids {
+        for id in engram_ids {
             if let Some(engram) = self.storage.get_engram(&id)? {
                 engrams.push(engram);
             }
         }
         
-        // Sort by confidence (highest first)
-        engrams.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+        // Sort by time or confidence
+        if query.sort_by_recency {
+            // Sort by timestamp (newest first or oldest first)
+            if query.sort_by_recency {
+                engrams.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+            } else {
+                engrams.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+            }
+        } else {
+            // Sort by confidence (highest first)
+            engrams.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+        }
         
         // Apply limit if specified
         if let Some(limit) = query.limit {
             if engrams.len() > limit {
                 engrams.truncate(limit);
+            }
+        }
+        
+        Ok(engrams)
+    }
+    
+    /// Get the most recent engrams
+    fn get_most_recent_engrams(&self, count: usize) -> Result<Vec<Engram>> {
+        let engram_ids = self.index.get_most_recent(count);
+        let mut engrams = Vec::new();
+        
+        for id in engram_ids {
+            if let Some(engram) = self.storage.get_engram(&id)? {
+                engrams.push(engram);
             }
         }
         
@@ -489,6 +627,94 @@ impl<'a> QueryService<'a> {
         self.query_engine.query_engrams(&query)
     }
     
+    /// Get the most recent engrams
+    pub fn get_recent_engrams(&self, limit: usize) -> Result<Vec<Engram>> {
+        let query = EngramQuery::new()
+            .with_sort_by_recency(true)
+            .with_limit(limit);
+        
+        self.query_engine.query_engrams(&query)
+    }
+    
+    /// Search for engrams created before a specific timestamp
+    pub fn search_before_time(
+        &self, 
+        timestamp: chrono::DateTime<chrono::Utc>,
+        limit: Option<usize>
+    ) -> Result<Vec<Engram>> {
+        let mut query = EngramQuery::new().with_before(timestamp);
+        
+        if let Some(limit) = limit {
+            query = query.with_limit(limit);
+        }
+        
+        self.query_engine.query_engrams(&query)
+    }
+    
+    /// Search for engrams created after a specific timestamp
+    pub fn search_after_time(
+        &self, 
+        timestamp: chrono::DateTime<chrono::Utc>,
+        limit: Option<usize>
+    ) -> Result<Vec<Engram>> {
+        let mut query = EngramQuery::new().with_after(timestamp);
+        
+        if let Some(limit) = limit {
+            query = query.with_limit(limit);
+        }
+        
+        self.query_engine.query_engrams(&query)
+    }
+    
+    /// Search for engrams created between two timestamps
+    pub fn search_between_times(
+        &self,
+        start: chrono::DateTime<chrono::Utc>,
+        end: chrono::DateTime<chrono::Utc>,
+        limit: Option<usize>
+    ) -> Result<Vec<Engram>> {
+        let mut query = EngramQuery::new().with_time_range(start, end);
+        
+        if let Some(limit) = limit {
+            query = query.with_limit(limit);
+        }
+        
+        self.query_engine.query_engrams(&query)
+    }
+    
+    /// Search for engrams created in a specific year
+    pub fn search_by_year(&self, year: i32, limit: Option<usize>) -> Result<Vec<Engram>> {
+        let mut query = EngramQuery::new().with_year(year);
+        
+        if let Some(limit) = limit {
+            query = query.with_limit(limit);
+        }
+        
+        self.query_engine.query_engrams(&query)
+    }
+    
+    /// Search for engrams created in a specific month
+    pub fn search_by_month(&self, year: i32, month: u32, limit: Option<usize>) -> Result<Vec<Engram>> {
+        let mut query = EngramQuery::new().with_month(year, month);
+        
+        if let Some(limit) = limit {
+            query = query.with_limit(limit);
+        }
+        
+        self.query_engine.query_engrams(&query)
+    }
+    
+    /// Search for engrams created on a specific day
+    pub fn search_by_day(&self, year: i32, month: u32, day: u32, limit: Option<usize>) -> Result<Vec<Engram>> {
+        let mut query = EngramQuery::new().with_day(year, month, day);
+        
+        if let Some(limit) = limit {
+            query = query.with_limit(limit);
+        }
+        
+        self.query_engine.query_engrams(&query)
+    }
+    
     /// Find connections between two engrams
     pub fn find_connections(
         &self,
@@ -589,6 +815,12 @@ impl<'a> QueryService<'a> {
         metadata_key: Option<&str>,
         metadata_value: Option<&str>,
         exact_match: bool,
+        before: Option<chrono::DateTime<chrono::Utc>>,
+        after: Option<chrono::DateTime<chrono::Utc>>,
+        year: Option<i32>,
+        month: Option<u32>,
+        day: Option<u32>,
+        sort_by_recency: bool,
         limit: Option<usize>,
     ) -> Result<Vec<Engram>> {
         let mut query = EngramQuery::new().with_exact_match(exact_match);
@@ -613,10 +845,64 @@ impl<'a> QueryService<'a> {
             }
         }
         
+        // Apply temporal filters
+        if let Some(b) = before {
+            query = query.with_before(b);
+        }
+        
+        if let Some(a) = after {
+            query = query.with_after(a);
+        }
+        
+        // Apply year/month/day filters if before/after not specified
+        if before.is_none() && after.is_none() {
+            if let Some(y) = year {
+                query = query.with_year(y);
+                
+                if let Some(m) = month {
+                    query = query.with_month(y, m);
+                    
+                    if let Some(d) = day {
+                        query = query.with_day(y, m, d);
+                    }
+                }
+            }
+        }
+        
+        query = query.with_sort_by_recency(sort_by_recency);
+        
         if let Some(l) = limit {
             query = query.with_limit(l);
         }
         
         self.query_engine.query_engrams(&query)
+    }
+    
+    /// Simplified combined search (backward compatibility)
+    pub fn search_combined_legacy(
+        &self,
+        text: Option<&str>,
+        source: Option<&str>,
+        min_confidence: Option<f64>,
+        metadata_key: Option<&str>,
+        metadata_value: Option<&str>,
+        exact_match: bool,
+        limit: Option<usize>,
+    ) -> Result<Vec<Engram>> {
+        self.search_combined(
+            text,
+            source,
+            min_confidence,
+            metadata_key,
+            metadata_value,
+            exact_match,
+            None,
+            None,
+            None,
+            None,
+            None,
+            false,
+            limit,
+        )
     }
 }
